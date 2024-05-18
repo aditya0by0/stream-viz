@@ -1,18 +1,39 @@
+# ------ River imports ---------
+
+# ------ Custom Imports
+import DriftRetrainClassifier
 import matplotlib.pyplot as plt
 import mplcursors
 import mpld3
+
+# ------ Basic python lib imports ----------------
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from DriftRetrainClassifier import DriftRetrainClassifier
-from river import linear_model, stream, tree
+from river import stream
+
+# Drift Detectors
 from river.drift import ADWIN, KSWIN, DriftRetrainingClassifier, PageHinkley
 from river.drift.binary import *
+from river.drift.retrain import DriftRetrainingClassifier
 from river.forest import ARFClassifier
+
+# Classifiers
 from river.linear_model import LogisticRegression
+
+# Metrics
 from river.metrics import F1, Accuracy, BalancedAccuracy, CohenKappa, Precision, Recall
+from river.tree import ExtremelyFastDecisionTreeClassifier, HoeffdingTreeClassifier
 from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import GaussianNB
+
+# sklearn classifiers
+from sklearn.neighbors import KNeighborsClassifier
+
+# Others
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
+
+# ------ Sk-learn imports -------------
 
 
 class StreamVisualization:
@@ -254,14 +275,14 @@ if __name__ == "__main__":
     )
     stream_viz = StreamVisualization(X_df, y_df)
     metrics = [Accuracy, Precision, Recall, F1, BalancedAccuracy, CohenKappa]
-    EFDTC_model = tree.ExtremelyFastDecisionTreeClassifier()
+    EFDTC_model = ExtremelyFastDecisionTreeClassifier()
     # model  = EFDTC_model
     arf_model = ARFClassifier()
-    lev_bag_model = LeveragingBaggingClassifier()
+    # lev_bag_model = LeveragingBaggingClassifier()
     # model = tree.hoeffding_adaptive_tree_classifier.HoeffdingAdaptiveTreeClassifier()
     # model = ADWINBoostingClassifier()
     # model = ADWINBaggingClassifier()
-    hoeffding_model = tree.HoeffdingTreeClassifier()
+    hoeffding_model = HoeffdingTreeClassifier()
 
     model = DriftRetrainClassifier(
         model=hoeffding_model,
@@ -276,7 +297,7 @@ if __name__ == "__main__":
     #                                     X_test,
     #                                     y_test,
     #                                     metrics[0]())
-    logistic_model = linear_model.LogisticRegression()
+    logistic_model = LogisticRegression()
 
     # t, m = stream_viz.adaptive_learning_2(hoeffding_model,
     #                                     X_train,
