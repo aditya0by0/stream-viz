@@ -1,6 +1,8 @@
 # ------ River imports ---------
 
 # ------ Custom Imports
+from collections import deque
+
 import DriftRetrainClassifier
 import matplotlib.pyplot as plt
 import mplcursors
@@ -140,6 +142,46 @@ class StreamVisualization:
         # self.concept_drifts_timepoints = model.drift_timepoints
         return t, m
 
+    def detect_concept_drift_1(
+        model, X_df, y_df, metric, drift_detector, window_size=100
+    ):
+        timepoint = 0
+        metric_score_list = []  # Record the real-time metric
+        concept_drifts_timepoints = []
+        my_model = model
+        my_drift_detector = drift_detector
+
+        metric_window = deque(maxlen=window_size)
+
+        # Stream data, updating the metric and checking for drifts
+        for xi, yi in stream.iter_pandas(X_df, y_df):
+            y_pred = my_model.predict_one(xi)
+            my_model.learn_one(xi, yi)
+            metric.update(yi, y_pred)
+            curr_metric_val = metric.get() * 100
+
+            # Add the current metric value to the rolling window
+            metric_window.append(curr_metric_val)
+
+            # Calculate the average of the metric values in the rolling window
+            if len(metric_window) == window_size:
+                windowed_metric_val = np.mean(metric_window)
+                my_drift_detector.update(windowed_metric_val)
+                metric_score_list.append(windowed_metric_val)
+
+                if my_drift_detector.drift_detected:
+                    concept_drifts_timepoints.append(timepoint)
+                    my_model = my_model.clone()
+                    metric_window.clear()  # Empty the window upon drift detection
+                    metric = metric.clone()
+                    # my_drift_detector._reset()
+            else:
+                metric_score_list.append(curr_metric_val)
+
+            timepoint += 1
+
+        return concept_drifts_timepoints, metric_score_list
+
     def plot(self, timepoint_start: int = 0, timepoint_end: int = 10):
         # Create main plot with subplots
         fig, axes = plt.subplots(
@@ -275,6 +317,8 @@ if __name__ == "__main__":
     )
     stream_viz = StreamVisualization(X_df, y_df)
     metrics = [Accuracy, Precision, Recall, F1, BalancedAccuracy, CohenKappa]
+    acc = Accuracy()
+    acc.clone()
     EFDTC_model = ExtremelyFastDecisionTreeClassifier()
     # model  = EFDTC_model
     arf_model = ARFClassifier()
@@ -284,12 +328,12 @@ if __name__ == "__main__":
     # model = ADWINBaggingClassifier()
     hoeffding_model = HoeffdingTreeClassifier()
 
-    model = DriftRetrainClassifier(
-        model=hoeffding_model,
-        # drift_detector=drift.binary.DDM()
-        drift_detector=ADWIN(),
-        train_in_background=False,
-    )
+    # model = DriftRetrainClassifier(
+    #     model=hoeffding_model,
+    #     # drift_detector=drift.binary.DDM()
+    #     drift_detector=ADWIN(),
+    #     train_in_background=False,
+    # )
 
     # t, m = stream_viz.adaptive_learning(model,
     #                                     X_train,
@@ -306,7 +350,69 @@ if __name__ == "__main__":
     #                                     y_test,
     #                                     CohenKappa())
 
-    t, m = stream_viz.adaptive_learning_3(hoeffding_model, X_df, y_df, CohenKappa())
-    stream_viz.acc_fig(t, m, "sdas")
+    # t, m = stream_viz.adaptive_learning_3(hoeffding_model, X_df, y_df, CohenKappa())
+    # stream_viz.acc_fig(t, m, "sdas")
     # stream_ = StreamVisualization(X_df, y_df)
     # stream_.detect_concept_drift()
+# cfpdss concepts:
+# n0, n1, n3 ~ N(0, 1)
+# n2 = 2 * (n1 + N(0, 1/8))
+# n4 = (n1 + n3) / 2 + N(0, 1/8)
+# c5, c6 ~ d2
+# c7 = c6 in 7/8
+# c8 = n3 < 0 in 7/8
+# c9 = c6 xor c8 in 7/8
+# class = [c7 and (n2 + n3 <  0.5)] or [!c7 and (n3 + n4 < -0.5)] in 31/32
+# n0
+# n1 - In-Directly related to class label : Yes
+# n3 - Directly related to class label : Yes
+# n2 - Directly related to class label : Yes
+# n4 - Directly related to class label : Yes
+# c5
+# c6 - In-Directly related to class label : Yes
+# c7 - Directly related to class label : Yes
+# c8
+# c9
+
+
+def detect_concept_drift(
+    model, X_df, y_df, metric_func, drift_detector, window_size=100
+):
+    timepoint = 0
+    metric_score_list = []  # Record the real-time metric
+    concept_drifts_timepoints = []
+    my_model = model
+    my_drift_detector = drift_detector
+
+    window_y = deque(maxlen=window_size)
+
+    # Stream data, updating the metric and checking for drifts
+    for xi, yi in stream.iter_pandas(X_df, y_df):
+        y_pred = my_model.predict_one(xi)
+
+        # Update the window with new prediction and get the current metric value of the window
+        window_y.append((yi, y_pred))
+        windowed_metric_val = metric_func(zip(*window_y)) * 100
+
+        my_model.learn_one(xi, yi)
+
+        # Recalculate the metric using only the values within the window
+        if len(window_y) == window_size:
+
+            my_drift_detector.update(windowed_metric_val)
+
+            if my_drift_detector.drift_detected:
+                concept_drifts_timepoints.append(timepoint)
+                my_model = my_model.clone()  # Clone the model upon drift detection
+                window_y.clear()  # Clear window on drift detection
+
+        metric_score_list.append(windowed_metric_val)
+
+        timepoint += 1
+
+    return concept_drifts_timepoints, metric_score_list
+
+
+from sklearn.metrics import accuracy_score
+
+z = detect_concept_drift(HoeffdingTreeClassifier(), X_df, y_df, accuracy_score, ADWIN())
