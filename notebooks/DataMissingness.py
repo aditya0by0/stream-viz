@@ -2,7 +2,7 @@ from collections import deque
 
 import numpy as np
 import pandas as pd
-from scipy.stats import chi2_contingency, hmean
+from scipy.stats import chi2_contingency
 from sklearn.linear_model import LogisticRegression
 
 
@@ -105,8 +105,8 @@ class MissingnessDetector:
             1. Heuristic Methods: Often based on domain knowledge and contextual understanding of the data.
             2. MNAR Indicators: If neither MCAR nor MAR hold, data might be MNAR.
 
-        Implemented point 2 above with help of harmonic mean
-        MNAR score = 1 - harmonic mean of (MCAR and MAR)
+        Implemented point 2 above with help of maximum of MCAR and MAR
+        MNAR score = 1 - max(MCAR and MAR)
         """
         if not self.mcar_scores_random_test or not self.mar_scores:
             raise ValueError(
@@ -116,8 +116,8 @@ class MissingnessDetector:
         last_mcar_score = self.mcar_scores_random_test[-1]
         last_mar_score = self.mar_scores[-1]
 
-        harmonic_mean_mcar_mar = hmean([last_mcar_score, last_mar_score])
-        mnar_score = 1 - harmonic_mean_mcar_mar
+        max_val_mcar_mar = max(last_mcar_score, last_mar_score)
+        mnar_score = 1 - max_val_mcar_mar
         self.mnar_scores.append(mnar_score)
 
     def get_results(self):
