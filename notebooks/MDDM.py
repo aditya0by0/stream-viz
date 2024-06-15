@@ -2,17 +2,27 @@ import math
 
 
 class MDDM_A:
-    def __init__(self, sliding_win_size=100, difference=0.01, confidence=0.000001):
+    def __init__(
+        self,
+        sliding_win_size=100,
+        difference=0.01,
+        confidence=0.000001,
+        warning_confidence=0.000005,
+    ):
         self.sliding_win_size = sliding_win_size
         self.difference = difference
         self.confidence = confidence
+        self.warning_confidence = warning_confidence
 
         self.win = [0] * self.sliding_win_size
         self.pointer = 0
 
-        self.difference = self.difference
         self.delta = self.confidence
         self.epsilon = (0.5 * self.cal_sigma() * (math.log(1 / self.delta))) ** 0.5
+        self.warning_delta = self.warning_confidence
+        self.warning_epsilon = (
+            0.5 * self.cal_sigma() * (math.log(1 / self.warning_delta))
+        ) ** 0.5
         self.u_max = 0
 
         self.is_change_detected = False
@@ -25,6 +35,10 @@ class MDDM_A:
         self.difference = self.difference
         self.delta = self.confidence
         self.epsilon = (0.5 * self.cal_sigma() * (math.log(1 / self.delta))) ** 0.5
+        self.warning_delta = self.warning_confidence
+        self.warning_epsilon = (
+            0.5 * self.cal_sigma() * (math.log(1 / self.warning_delta))
+        ) ** 0.5
         self.u_max = 0
 
     def input(self, prediction):
@@ -48,7 +62,10 @@ class MDDM_A:
         if self.pointer == len(self.win):
             u = self.cal_w_mean()
             self.u_max = max(self.u_max, u)
-            drift_status = self.u_max - u > self.epsilon
+            if self.u_max - u > self.epsilon:
+                drift_status = True
+            elif self.u_max - u > self.warning_epsilon:
+                warning_status = True
 
         self.is_warning_zone = warning_status
         self.is_change_detected = drift_status
@@ -74,10 +91,17 @@ class MDDM_A:
 
 
 class MDDM_E:
-    def __init__(self, sliding_win_size=100, lambda_val=0.01, confidence=0.000001):
+    def __init__(
+        self,
+        sliding_win_size=100,
+        lambda_val=0.01,
+        confidence=0.000001,
+        warning_confidence=0.000005,
+    ):
         self.sliding_win_size = sliding_win_size
         self.lambda_val = lambda_val
         self.confidence = confidence
+        self.warning_confidence = warning_confidence
 
         self.win = [0] * self.sliding_win_size
         self.pointer = 0
@@ -86,6 +110,10 @@ class MDDM_E:
         self.delta = self.confidence
         self.epsilon = math.sqrt(0.5 * self.cal_sigma() * math.log(1 / self.delta))
         self.u_max = 0
+        self.warning_delta = self.warning_confidence
+        self.warning_epsilon = (
+            0.5 * self.cal_sigma() * (math.log(1 / self.warning_delta))
+        ) ** 0.5
 
         self.is_change_detected = False
         self.is_initialized = False
@@ -97,6 +125,10 @@ class MDDM_E:
         self.lambda_val = self.lambda_val
         self.delta = self.confidence
         self.epsilon = math.sqrt(0.5 * self.cal_sigma() * math.log(1 / self.delta))
+        self.warning_delta = self.warning_confidence
+        self.warning_epsilon = (
+            0.5 * self.cal_sigma() * (math.log(1 / self.warning_delta))
+        ) ** 0.5
         self.u_max = 0
 
     def input(self, prediction):
@@ -118,8 +150,10 @@ class MDDM_E:
         if self.pointer == len(self.win):
             u = self.cal_w_mean()
             self.u_max = max(self.u_max, u)
-            drift_status = self.u_max - u > self.epsilon
-
+            if self.u_max - u > self.epsilon:
+                drift_status = True
+            elif self.u_max - u > self.warning_epsilon:
+                warning_status = True
         self.is_warning_zone = warning_status
         self.is_change_detected = drift_status
 
@@ -156,10 +190,17 @@ class MDDM_E:
 
 
 class MDDM_G:
-    def __init__(self, sliding_win_size=100, ratio=1.01, confidence=0.000001):
+    def __init__(
+        self,
+        sliding_win_size=100,
+        ratio=1.01,
+        confidence=0.000001,
+        warning_confidence=0.000005,
+    ):
         self.sliding_win_size = sliding_win_size
         self.ratio = ratio
         self.confidence = confidence
+        self.warning_confidence = warning_confidence
 
         self.win = [0] * self.sliding_win_size
         self.pointer = 0
@@ -167,6 +208,10 @@ class MDDM_G:
         self.ratio = self.ratio
         self.delta = self.confidence
         self.epsilon = math.sqrt(0.5 * self.cal_sigma() * math.log(1 / self.delta))
+        self.warning_delta = self.warning_confidence
+        self.warning_epsilon = (
+            0.5 * self.cal_sigma() * (math.log(1 / self.warning_delta))
+        ) ** 0.5
         self.u_max = 0
 
         self.is_change_detected = False
@@ -179,6 +224,10 @@ class MDDM_G:
         self.ratio = self.ratio
         self.delta = self.confidence
         self.epsilon = math.sqrt(0.5 * self.cal_sigma() * math.log(1 / self.delta))
+        self.warning_delta = self.warning_confidence
+        self.warning_epsilon = (
+            0.5 * self.cal_sigma() * (math.log(1 / self.warning_delta))
+        ) ** 0.5
         self.u_max = 0
 
     def input(self, prediction):
@@ -200,7 +249,10 @@ class MDDM_G:
         if self.pointer == len(self.win):
             u = self.cal_w_mean()
             self.u_max = max(self.u_max, u)
-            drift_status = self.u_max - u > self.epsilon
+            if self.u_max - u > self.epsilon:
+                drift_status = True
+            elif self.u_max - u > self.warning_epsilon:
+                warning_status = True
 
         self.is_warning_zone = warning_status
         self.is_change_detected = drift_status
@@ -233,3 +285,12 @@ class MDDM_G:
 
     def prepare_for_use(self, monitor, repository):
         pass
+
+
+if __name__ == "__main__":
+    MDDM_A_class = MDDM_A(
+        sliding_win_size=100, confidence=0.0001, warning_confidence=0.0005
+    )
+    print(
+        f"epsilon for delta : {MDDM_A_class.epsilon}, epsilon for warning delta : {MDDM_A_class.warning_epsilon}"
+    )
