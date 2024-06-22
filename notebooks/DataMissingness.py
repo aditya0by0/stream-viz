@@ -2,6 +2,7 @@ from collections import deque
 
 import numpy as np
 import pandas as pd
+from pyampute.exploration.mcar_statistical_tests import MCARTest
 from scipy.stats import chi2_contingency
 from sklearn.linear_model import LogisticRegression
 
@@ -52,17 +53,22 @@ class MissingnessDetector:
         self.mcar_scores_random_test_df = (
             pd.DataFrame()
         )  # DataFrame to store MCAR scores
-        self.mcar_scores_chi2_test = []
+        self.mcar_scores_chi2_test = pd.DataFrame(columns=["p_value"])
         self.mar_scores_df = pd.DataFrame()  # DataFrame to store MAR scores
+        self.mcar_little_test_cls = MCARTest(method="little")
 
     def update(self, new_data, idx: int):
         self.data_window.append(new_data)
         missing_labels = {col: int(pd.isnull(new_data[col])) for col in new_data}
         self.missing_labels_window.append(missing_labels)
 
-        if self.mcar_scores_random_test_df.empty:
-            df_window = pd.DataFrame(self.data_window)
-            self.mcar_scores_random_test_df = pd.DataFrame(columns=df_window.columns)
+        # if self.mcar_scores_random_test_df.empty:
+        #     df_window = pd.DataFrame(self.data_window)
+        #     self.mcar_scores_random_test_df = pd.DataFrame(columns=df_window.columns)
+        #
+        # if self.mcar_scores_chi2_test.empty:
+        #     df_window = pd.DataFrame(self.data_window)
+        #     self.mcar_scores_chi2_test = pd.DataFrame(columns=df_window.columns)
 
         if self.mar_scores_df.empty:
             df_window = pd.DataFrame(self.data_window)
@@ -77,13 +83,13 @@ class MissingnessDetector:
         missing_labels_df = pd.DataFrame(self.missing_labels_window)
 
         # MCAR Test
-        self.evaluate_MCAR_with_random_test(df_window, idx)
-        # self.evaluate_MCAR_with_chi2_test(df_window)
+        # self.evaluate_MCAR_with_random_test(df_window, idx)
+        self.evaluate_MCAR_with_chi2_test(df_window, idx)
 
-        # MAR Test
-        for col in df_window.columns:
-            if missing_labels_df[col].sum() > 0:
-                self.evaluate_MAR(df_window, col, missing_labels_df[col], idx)
+        # # MAR Test
+        # for col in df_window.columns:
+        #     if missing_labels_df[col].sum() > 0:
+        #         self.evaluate_MAR(df_window, col, missing_labels_df[col], idx)
 
     def evaluate_MCAR_with_random_test(self, df, idx: int):
         """
@@ -95,21 +101,29 @@ class MissingnessDetector:
         self.mcar_scores_random_test_df.loc[idx] = missing_ratios
         self.mcar_scores_random_test_df.loc[idx, "mean"] = missing_ratios.mean()
 
-    def evaluate_MCAR_with_chi2_test(self, df):
+    def evaluate_MCAR_with_chi2_test(self, df, idx: int):
         """
-        Little’s MCAR Test: Implemented using the chi-squared test (chi2_contingency).
-        If the p-value is high, we fail to reject the null hypothesis that the data is MCAR.
-        High p-values suggest that the data is MCAR.
+        Implementation of Little's MCAR test
+
+        Parameters
+        ----------
+        X : Matrix of shape `(n, m)`
+            Dataset with missing values. `n` rows (samples) and `m` columns (features).
+
+        Returns
+        -------
+        pvalue : float
+            The p-value of a chi-square hypothesis test.
+            Null hypothesis: data is Missing Completely At Random (MCAR).
+            Alternative hypothesis: data is not MCAR.
+            If the p-value is lower than the significance level (typically 0.05), we reject the null hypothesis,
+            concluding that the data is not MCAR.
+            If the p-value is higher than the significance level, we fail to reject the null hypothesis,
+            suggesting that the data is MCAR.
         """
-        raise NotImplementedError  # Will rectify the implemenation error later
-        complete_cases = df.dropna()
-        for col in df.columns:
-            if df[col].isnull().sum() > 0:
-                observed_freq = pd.crosstab(
-                    df[col].isnull(), complete_cases.notnull().sum(axis=1)
-                )
-                chi2, p, _, _ = chi2_contingency(observed_freq)
-                self.mcar_scores_chi2_test.append(p)
+
+        p_value = self.mcar_little_test_cls.little_mcar_test(df)
+        self.mcar_scores_chi2_test.loc[idx, "p_value"] = p_value
 
     def evaluate_MAR(self, df, target_column, missing_labels, idx):
         """
@@ -139,7 +153,7 @@ class MissingnessDetector:
         Implemented point 2 above with help of maximum of MCAR and MAR
         MNAR score = 1 - max(MCAR and MAR)
         """
-        if self.mcar_scores_random_test_df.empty or self.mar_scores_df.empty:
+        if self.mcar_scores_chi2_test.empty or self.mar_scores_df.empty:
             raise ValueError(
                 "MCAR and MAR scores must be calculated before MNAR score."
             )
@@ -157,13 +171,13 @@ class MissingnessDetector:
     def get_results(self):
         # Add mean of each row as a new column
         self.mar_scores_df["mean"] = self.mar_scores_df.mean(axis=1)
-        self.evaluate_MNAR()
+        # self.evaluate_MNAR()
 
         return {
-            "MCAR (Random Test)": self.mcar_scores_random_test_df,
-            # "MCAR (Chi2 Test)": self.mcar_scores_chi2_test,
-            "MAR": self.mar_scores_df,
-            "MNAR": self.mnar_scores_df,
+            # "MCAR (Random Test)": self.mac,
+            "MCAR (Chi2 Test)": self.mcar_scores_chi2_test,
+            # "MAR": self.mar_scores_df,
+            # "MNAR": self.mnar_scores_df,
         }
 
 
