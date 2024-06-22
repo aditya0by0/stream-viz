@@ -1,5 +1,3 @@
-// src/components/testData.ts
-
 interface DriftRange {
   start_tp: number;
   end_tp: number;
