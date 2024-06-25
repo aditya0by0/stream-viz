@@ -121,7 +121,7 @@ class MissingnessDetector:
             If the p-value is higher than the significance level, we fail to reject the null hypothesis,
             suggesting that the data is MCAR.
         """
-
+        # increase step size, with min 25% overlap
         p_value = self.mcar_little_test_cls.little_mcar_test(df)
         self.mcar_scores_chi2_test.loc[idx, "p_value"] = p_value
 
