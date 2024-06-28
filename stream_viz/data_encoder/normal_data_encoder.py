@@ -1,2 +1,0 @@
-class DataEncoder:
-    pass

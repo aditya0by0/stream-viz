@@ -1,14 +1,10 @@
 from abc import ABC
 
+import pandas as pd
+
 
 class Base(ABC):
     def stream(self):
-        raise NotImplementedError
-
-    def read_data_from_file(self):
-        raise NotImplementedError
-
-    def encode_data(self, data):
         raise NotImplementedError
 
     def update(self, x, idx):
@@ -40,14 +36,24 @@ class Base(ABC):
 
 
 class DataEncoder(ABC):
-    def read_data(self):
+    def __init__(self):
+        self.data: pd.DataFrame = pd.DataFrame()
+
+    def read_csv_data(self, *args, **kwargs) -> None:
+        self.data = pd.read_csv(*args, **kwargs)
+        if self.data is None or self.data.empty:
+            raise "Unable to read data"
+
+    def encode_data(self, *args, **kwargs):
         raise NotImplementedError
 
-    def encode_data(self):
-        raise NotImplementedError
+    @property
+    def data(self) -> pd.DataFrame:
+        return self._data
 
-    def _custom_preprocessing(self):
-        raise NotImplementedError
+    @data.setter
+    def data(self, value: pd.DataFrame):
+        self._data = value
 
 
 class Streamer(Base):
