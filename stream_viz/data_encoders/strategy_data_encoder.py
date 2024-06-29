@@ -16,11 +16,11 @@ class KappaStrategyDataEncoder(DataEncoder):
 
     def read_csv_data(self, *args, **kwargs) -> None:
         super().read_csv_data(*args, **kwargs)
-        self.data = self.__preprocess_before_storing(self.data)
+        self.original_data = self.__preprocess_before_storing(self.original_data)
 
     def encode_data(self, *args, **kwargs):
         # No encoding needed for this type of data
-        pass
+        self.encoded_data = self.original_data
 
     @classmethod
     def __preprocess_before_storing(cls, df_experiment: pd.DataFrame) -> pd.DataFrame:
@@ -59,4 +59,4 @@ if __name__ == "__main__":
         header=[0, 1, 2],
         index_col=[0, 1],
     )
-    kappa_encoder.data.head()
+    kappa_encoder.encoded_data.head()

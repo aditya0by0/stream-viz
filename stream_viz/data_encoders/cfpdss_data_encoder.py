@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import numpy as np
 import pandas as pd
@@ -12,20 +12,44 @@ from stream_viz.base import DataEncoder
 class CfpdssData(DataEncoder, ABC):
     def __init__(self):
         super().__init__()
+        self._X_encoded_data: pd.DataFrame = pd.DataFrame()
+        self._y_encoded_data: pd.Series = pd.Series()
         self.original_categorical_cols: List[str] = []
         self.original_numerical_cols: List[str] = []
         self.encoded_categorical_cols: List[str] = []
         self.encoded_numerical_cols: List[str] = []
 
-    def encode_data(
-        self, feature_scaling: Optional[bool] = True, **kwargs
-    ) -> Tuple[pd.DataFrame, pd.Series]:
-        if self.data.empty:
-            raise "Data not read yet"
+    @property
+    def X_encoded_data(self) -> pd.DataFrame:
+        if self._X_encoded_data is None or self._X_encoded_data.empty:
+            raise ValueError("Encoded Data is empty. Please call `encode_data` method")
+        return self._X_encoded_data
+
+    @X_encoded_data.setter
+    def X_encoded_data(self, value: pd.DataFrame):
+        if not isinstance(value, pd.DataFrame):
+            raise ValueError("encoded_data must be a pandas DataFrame")
+        self._X_encoded_data = value
+
+    @property
+    def y_encoded_data(self) -> pd.Series:
+        if self._y_encoded_data is None or self._y_encoded_data.empty:
+            raise ValueError(
+                "encoded_data Data is empty. Please call `encode_data` method"
+            )
+        return self._y_encoded_data
+
+    @y_encoded_data.setter
+    def y_encoded_data(self, value: pd.Series):
+        if not isinstance(value, pd.Series):
+            raise ValueError("encoded_data must be a pandas Series")
+        self._y_encoded_data = value
+
+    def encode_data(self, feature_scaling: Optional[bool] = True, **kwargs) -> None:
 
         target_variable_name = kwargs.get("target_variable_name", "class")
 
-        X_df = self.data.drop(columns=target_variable_name)
+        X_df = self.original_data.drop(columns=target_variable_name)
 
         # Separating categorical and non-categorical columns dataframes
         self.original_categorical_cols = X_df.select_dtypes(
@@ -52,12 +76,13 @@ class CfpdssData(DataEncoder, ABC):
         )
 
         # Encoding the target variable
-        y_df = self.data[[target_variable_name]]
+        y_df = self.original_data[[target_variable_name]]
         y_encoder = OneHotEncoder(sparse_output=False, drop="if_binary", dtype=np.int32)
         y_one_hot = y_encoder.fit_transform(y_df)
         y_encoded = pd.Series(y_one_hot.ravel())
 
-        return X_df_encoded, y_encoded
+        self.X_encoded_data = X_df_encoded
+        self.y_encoded_data = y_encoded
 
     def _encode_categorical_data(self, X_df_categorical: pd.DataFrame) -> pd.DataFrame:
         # One hot encoding - Categorical dataframe
@@ -135,13 +160,16 @@ if __name__ == "__main__":
     normal.read_csv_data(
         filepath_or_buffer="C:/Users/HP/Desktop/github-aditya0by0/stream-viz/data/cfpdss.csv"
     )
-    X, y = normal.encode_data()
-    X.head()
+    normal.encode_data()
+    normal.X_encoded_data.head()
+    normal.y_encoded_data.head()
 
     # Cfpdss data encoding with missing values
     missing = MissingDataEncoder()
     missing.read_csv_data(
         filepath_or_buffer="C:/Users/HP/Desktop/github-aditya0by0/stream-viz/data/cfpdss_m0.5.csv"
     )
-    X_missing, y = missing.encode_data()
-    X_missing.head()
+    missing.encode_data()
+
+    missing.X_encoded_data.head()
+    missing.y_encoded_data.head()
