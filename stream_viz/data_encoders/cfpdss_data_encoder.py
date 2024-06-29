@@ -108,6 +108,20 @@ class CfpdssData(DataEncoder, ABC):
     def _get_scaler(self) -> OneToOneFeatureMixin | TransformerMixin:
         return MinMaxScaler()
 
+    @property
+    def encoded_data(self) -> pd.DataFrame:
+        raise NotImplementedError(
+            "`encoded_data`` is not used for Cfpdss dataset. "
+            "Use `X_encoded` and `y_encoded` instead."
+        )
+
+    @encoded_data.setter
+    def encoded_data(self, value: pd.DataFrame):
+        raise NotImplementedError(
+            "`encoded_data`` is not used for Cfpdss dataset. "
+            "Use `X_encoded` and `y_encoded` instead."
+        )
+
 
 class NormalDataEncoder(CfpdssData):
     pass
