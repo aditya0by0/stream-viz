@@ -1,0 +1,23 @@
+name: Build and Test
+
+on: [push, pull_request]
+
+jobs:
+  pre-commit:
+    name: Run Pre-commit Hooks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Check if pre-commit hooks are installed
+        id: check_hooks
+        run: echo ::set-output name=hooks_installed::$(if pre-commit run --hook-stage=commit-msg >/dev/null 2>&1; then echo "true"; else echo "false"; fi)
+
+      - name: Install dependencies and configure pre-commit
+        if: steps.check_hooks.outputs.hooks_installed != 'true'
+        run: pre-commit install --install-hooks
+
+      - name: Run pre-commit hooks
+        run: pre-commit run --all-files
