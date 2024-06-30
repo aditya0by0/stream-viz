@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List
+from typing import Dict, List
 
 import pandas as pd
+
+from stream_viz.utils.drifts_types import DriftType, get_valid_keys
 
 
 class Base(ABC):
@@ -80,12 +82,51 @@ class DataEncoder(ABC):
         self._encoded_data = value
 
 
-class DriftDetector(Base):
-    def __init__(self):
+class Streamer(ABC):
+    @abstractmethod
+    def stream_data(self, X_df: pd.DataFrame, y_df: pd.DataFrame) -> None:
         pass
 
-    def stream_data(self, data):
+
+class DriftDetector(ABC):
+    def __init__(self):
+        self._drift_records: List[DriftType] = []
+        self._valid_keys = get_valid_keys()
+
+    @abstractmethod
+    def update(self, x_i: Dict, y_i: int, tpt: int):
         pass
+
+    @abstractmethod
+    def detect_drift(self):
+        pass
+
+    @abstractmethod
+    def plot_drift(self, start_tpt: int, end_tpt: int):
+        pass
+
+    @property
+    def drift_records(self) -> List[DriftType]:
+        """Getter for drift records"""
+        return self._drift_records
+
+    @drift_records.setter
+    def drift_records(self, new_drift: DriftType) -> None:
+        """Setter for drift records - adds a new drift to the list"""
+        if isinstance(new_drift, dict) and self._validate_drift(new_drift):
+            self._drift_records.append(new_drift)
+        else:
+            raise ValueError("Invalid drift record")
+
+    def _validate_drift(self, drift: DriftType) -> bool:
+        """Validates the drift record"""
+        if not any(key in drift for key in self._valid_keys):
+            return False
+        for key in self._valid_keys:
+            if key in drift:
+                if "start_tp" in drift[key] and "end_tp" in drift[key]:
+                    return True
+        return False
 
 
 class Binning(ABC):
@@ -93,9 +134,9 @@ class Binning(ABC):
         self._bin_thresholds: List[float] = []
         self._binned_data_X: pd.DataFrame = pd.DataFrame
         # regex pattern for the columns name that needs to binned
-        self._col_name_regex = kwargs.get("col_name_regex", "^n")
+        self._col_name_regex = kwargs.get("col_name_regex", r"^n")
         # New name for the columns to be binned
-        self._bin_col_names = kwargs.get("bin_col_names", "_bin_idx_")
+        self._bin_col_names = kwargs.get("bin_col_names", r"bin_idx_")
 
     @abstractmethod
     def perform_binning(self):
