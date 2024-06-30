@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import List
 
 import pandas as pd
 
@@ -85,3 +86,41 @@ class DriftDetector(Base):
 
     def stream_data(self, data):
         pass
+
+
+class Binning(ABC):
+    def __init__(self, **kwargs):
+        self._bin_thresholds: List[float] = []
+        self._binned_data_X: pd.DataFrame = pd.DataFrame
+        # regex pattern for the columns name that needs to binned
+        self._col_name_regex = kwargs.get("col_name_regex", "^n")
+        # New name for the columns to be binned
+        self._bin_col_names = kwargs.get("bin_col_names", "_bin_idx_")
+
+    @abstractmethod
+    def perform_binning(self):
+        pass
+
+    @property
+    def bin_thresholds(self) -> List[float]:
+        if self._bin_thresholds is None:
+            raise ValueError("bin_thresholds is empty")
+        return self._bin_thresholds
+
+    @bin_thresholds.setter
+    def bin_thresholds(self, value: List[float]):
+        if not isinstance(value, list):
+            raise ValueError("bin_thresholds must be a List")
+        self._bin_thresholds = value
+
+    @property
+    def binned_data_X(self) -> pd.DataFrame:
+        if self._binned_data_X is None or self._binned_data_X.empty:
+            raise ValueError("Binned Data is empty.")
+        return self._binned_data_X
+
+    @binned_data_X.setter
+    def binned_data_X(self, value: pd.DataFrame):
+        if not isinstance(value, pd.DataFrame):
+            raise ValueError("Input must be a Dataframe")
+        self._binned_data_X = value

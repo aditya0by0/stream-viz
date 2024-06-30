@@ -181,7 +181,8 @@ if __name__ == "__main__":
     # Cfpdss data encoding with missing values
     missing = MissingDataEncoder()
     missing.read_csv_data(
-        filepath_or_buffer="C:/Users/HP/Desktop/github-aditya0by0/stream-viz/data/cfpdss_m0.5.csv"
+        filepath_or_buffer="C:/Users/HP/Desktop/github-aditya0by0/stream-viz/data/cfpdss_m0.5.csv",
+        index_col=[0],
     )
     missing.encode_data()
 
