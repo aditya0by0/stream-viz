@@ -98,11 +98,11 @@ class DriftDetector(ABC):
         pass
 
     @abstractmethod
-    def detect_drift(self):
+    def detect_drift(self, tpt: int, *args, **kwargs) -> None:
         pass
 
     @abstractmethod
-    def plot_drift(self, start_tpt: int, end_tpt: int):
+    def plot_drift(self, start_tpt: int, end_tpt: int, *args, **kwargs):
         pass
 
     @property
