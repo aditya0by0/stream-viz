@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import pandas as pd
 
-from stream_viz.utils.drifts_types import DriftType, get_valid_keys
+from stream_viz.utils.drifts_types import AllDriftType, get_all_drift_types_keys
 
 
 class Base(ABC):
@@ -82,16 +82,10 @@ class DataEncoder(ABC):
         self._encoded_data = value
 
 
-class Streamer(ABC):
-    @abstractmethod
-    def stream_data(self, X_df: pd.DataFrame, y_df: pd.DataFrame) -> None:
-        pass
-
-
 class DriftDetector(ABC):
     def __init__(self):
-        self._drift_records: List[DriftType] = []
-        self._valid_keys = get_valid_keys()
+        self._drift_records: List[AllDriftType] = []
+        self._valid_keys: set[str] = get_all_drift_types_keys()
 
     @abstractmethod
     def update(self, x_i: Dict, y_i: int, tpt: int):
@@ -106,19 +100,18 @@ class DriftDetector(ABC):
         pass
 
     @property
-    def drift_records(self) -> List[DriftType]:
+    @abstractmethod
+    def drift_records(self) -> List[AllDriftType]:
         """Getter for drift records"""
-        return self._drift_records
+        pass
 
     @drift_records.setter
-    def drift_records(self, new_drift: DriftType) -> None:
+    @abstractmethod
+    def drift_records(self, drift_record: AllDriftType) -> None:
         """Setter for drift records - adds a new drift to the list"""
-        if isinstance(new_drift, dict) and self._validate_drift(new_drift):
-            self._drift_records.append(new_drift)
-        else:
-            raise ValueError("Invalid drift record")
+        pass
 
-    def _validate_drift(self, drift: DriftType) -> bool:
+    def _validate_drift(self, drift: AllDriftType) -> bool:
         """Validates the drift record"""
         if not any(key in drift for key in self._valid_keys):
             return False
@@ -129,10 +122,24 @@ class DriftDetector(ABC):
         return False
 
 
+class Streamer(ABC):
+    def __init__(
+        self,
+        rcd_detector_obj: Optional[DriftDetector] = None,
+        fd_detector_obj: Optional[DriftDetector] = None,
+    ):
+        self.rcd_detector_obj: Optional[DriftDetector] = rcd_detector_obj
+        self.fd_detector_obj: Optional[DriftDetector] = fd_detector_obj
+
+    @abstractmethod
+    def stream_data(self, X_df: pd.DataFrame, y_df: pd.Series) -> None:
+        pass
+
+
 class Binning(ABC):
     def __init__(self, **kwargs):
         self._bin_thresholds: List[float] = []
-        self._binned_data_X: pd.DataFrame = pd.DataFrame
+        self._binned_data_X: pd.DataFrame = pd.DataFrame()
         # regex pattern for the columns name that needs to binned
         self._col_name_regex = kwargs.get("col_name_regex", r"^n")
         # New name for the columns to be binned

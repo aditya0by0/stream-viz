@@ -5,10 +5,12 @@ import mplcursors
 import numpy as np
 import seaborn as sns
 from matplotlib import pyplot as plt
-from rcd_configs import drift_detectors, metrics_dict, models_dict
 from typing_extensions import Deque
 
 from stream_viz.base import DriftDetector
+from stream_viz.utils.drifts_types import RealConceptDriftType, get_rcd_drift_type_keys
+
+from .rcd_configs import drift_detectors, metrics_dict, models_dict
 
 
 class RealConceptDriftDetector(DriftDetector):
@@ -19,7 +21,8 @@ class RealConceptDriftDetector(DriftDetector):
         model_name="Hoeffding",
         drift_detector="MDDM_A",
     ):
-        super().__init__()
+        self._drift_records: List[RealConceptDriftType] = []
+        self._valid_keys: set[str] = get_rcd_drift_type_keys()
         self.concept_drifts_timepoints: List[int] = []
         self.warning_level_timepoints: List[int] = []
         self.metric_score_list: List[float] = []
@@ -39,6 +42,17 @@ class RealConceptDriftDetector(DriftDetector):
     def set_params_for_drift_dt(self, *args, **kwargs):
         self._drift_detector = self._drift_detector.__class__(*args, **kwargs)
 
+    @property
+    def drift_records(self) -> List[RealConceptDriftType]:
+        return self._drift_records
+
+    @drift_records.setter
+    def drift_records(self, drift_record: RealConceptDriftType):
+        if isinstance(drift_record, dict) and self._validate_drift(drift_record):
+            self._drift_records.append(drift_record)
+        else:
+            raise ValueError("Invalid drift record")
+
     def update(self, x_i: Dict, y_i: int, tpt: int):
         y_pred = self._model.predict_one(x_i)
         if y_pred is None:
@@ -54,7 +68,7 @@ class RealConceptDriftDetector(DriftDetector):
         self.metric_score_list.append(win_metric_val)
         self.detect_drift(tpt, y_pred, y_i)
 
-    def detect_drift(self, tpt: int, y_pred, y_i) -> None:
+    def detect_drift(self, tpt: int, y_pred: float, y_i: int) -> None:
         self._drift_detector.input(int(y_pred == y_i))
 
         if self._drift_detector.is_warning_zone:
@@ -146,15 +160,14 @@ class RealConceptDriftDetector(DriftDetector):
 
 if __name__ == "__main__":
     from stream_viz.data_encoders.cfpdss_data_encoder import MissingDataEncoder
+    from stream_viz.utils.constants import _MISSING_DATA_PATH
 
     # Cfpdss data encoding without missing values
     missing = MissingDataEncoder()
     missing.read_csv_data(
-        filepath_or_buffer="C:/Users/HP/Desktop/github-aditya0by0/stream-viz/data/cfpdss_m0.5.csv",
+        filepath_or_buffer=_MISSING_DATA_PATH,
         index_col=[0],
     )
     missing.encode_data()
 
     rl_cddt = RealConceptDriftDetector(window_size=100)
-    # rl_cddt.stream_data(missing.X_encoded_data, missing.y_encoded_data)
-    # rl_cddt.plot_concept_drift()
