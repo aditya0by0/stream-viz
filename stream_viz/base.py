@@ -136,6 +136,13 @@ class Streamer(ABC):
         pass
 
 
+class Velocity(ABC):
+
+    @abstractmethod
+    def plot_velocity(self, *args, **kwargs):
+        pass
+
+
 class Binning(ABC):
     def __init__(self, **kwargs):
         self._bin_thresholds: List[float] = []
