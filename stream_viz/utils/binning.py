@@ -54,11 +54,12 @@ class DecisionTreeBinning(Binning):
 
 if __name__ == "__main__":
     from stream_viz.data_encoders.cfpdss_data_encoder import MissingDataEncoder
+    from stream_viz.utils.constants import _MISSING_DATA_PATH
 
     # Cfpdss data encoding with missing values
     missing = MissingDataEncoder()
     missing.read_csv_data(
-        filepath_or_buffer="C:/Users/HP/Desktop/github-aditya0by0/stream-viz/data/cfpdss_m0.5.csv",
+        filepath_or_buffer=_MISSING_DATA_PATH,
         index_col=[0],
     )
     missing.encode_data()

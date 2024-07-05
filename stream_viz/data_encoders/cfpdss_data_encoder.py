@@ -169,11 +169,11 @@ class MissingDataEncoder(CfpdssData):
 
 
 if __name__ == "__main__":
+    from stream_viz.utils.constants import _MISSING_DATA_PATH, _NORMAL_DATA_PATH
+
     # Cfpdss data encoding without missing values
     normal = NormalDataEncoder()
-    normal.read_csv_data(
-        filepath_or_buffer="C:/Users/HP/Desktop/github-aditya0by0/stream-viz/data/cfpdss.csv"
-    )
+    normal.read_csv_data(filepath_or_buffer=_NORMAL_DATA_PATH)
     normal.encode_data()
     normal.X_encoded_data.head()
     normal.y_encoded_data.head()
@@ -181,7 +181,7 @@ if __name__ == "__main__":
     # Cfpdss data encoding with missing values
     missing = MissingDataEncoder()
     missing.read_csv_data(
-        filepath_or_buffer="C:/Users/HP/Desktop/github-aditya0by0/stream-viz/data/cfpdss_m0.5.csv",
+        filepath_or_buffer=_MISSING_DATA_PATH,
         index_col=[0],
     )
     missing.encode_data()
