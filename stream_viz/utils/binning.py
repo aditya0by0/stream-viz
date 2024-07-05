@@ -1,5 +1,3 @@
-from typing import Type
-
 import numpy as np
 import pandas as pd
 from sklearn.tree import DecisionTreeClassifier
@@ -10,27 +8,29 @@ from stream_viz.base import Binning
 class DecisionTreeBinning(Binning):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._DT_model: Type[DecisionTreeClassifier] = DecisionTreeClassifier(
+        self._DT_model: DecisionTreeClassifier = DecisionTreeClassifier(
             criterion="entropy", max_depth=2
         )
+        self.column_mapping = {}
 
     def set_params_for_DT(self, *args, **kwargs):
         self._DT_model = DecisionTreeClassifier(*args, **kwargs)
 
     def perform_binning(
-        self, X_df_encoded_m: pd.DataFrame, y_encoded_m: pd.DataFrame
+        self, X_df_encoded_m: pd.DataFrame, y_encoded_m: pd.Series
     ) -> None:
         # Perform binning for numerical columns
         self._get_bins_using_DTs(X_df_encoded_m, y_encoded_m)
         _binned_data: pd.DataFrame = X_df_encoded_m.copy(deep=True)
         for col in X_df_encoded_m.filter(regex=self._col_name_regex).columns:
-            _binned_data[self._bin_col_names + col] = X_df_encoded_m[col].apply(
+            binned_col_name = f"{self._bin_col_names}{col}"
+            self.column_mapping[col] = binned_col_name  # Store the mapping
+            _binned_data[binned_col_name] = X_df_encoded_m[col].apply(
                 lambda x: self._apply_binning(x, self.bin_thresholds)
             )
         self.binned_data_X = _binned_data
 
     def _get_bins_using_DTs(self, X_df_encoded_m, y_encoded_m):
-
         # Binning for numerical attributes
         self._DT_model.fit(
             X_df_encoded_m.filter(regex=self._col_name_regex), y_encoded_m
@@ -67,3 +67,4 @@ if __name__ == "__main__":
     dt_binner = DecisionTreeBinning()
     dt_binner.perform_binning(missing.X_encoded_data, missing.y_encoded_data)
     dt_binner.binned_data_X.head()
+    print("Column Mapping: ", dt_binner.column_mapping)

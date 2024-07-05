@@ -153,7 +153,7 @@ class Binning(ABC):
         self._bin_col_names = kwargs.get("bin_col_names", r"bin_idx_")
 
     @abstractmethod
-    def perform_binning(self):
+    def perform_binning(self, *args, **kwargs):
         pass
 
     @property
