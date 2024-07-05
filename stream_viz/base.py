@@ -143,6 +143,22 @@ class Velocity(ABC):
         pass
 
 
+class StrategyPlot(ABC):
+    @abstractmethod
+    def plot_graph(self, *args, **kwargs):
+        self.plot_winner_at_each_tpt(*args, **kwargs)
+        self.plot_difference(*args, **kwargs)
+        pass
+
+    @abstractmethod
+    def plot_winner_at_each_tpt(self, *args, **kwargs):
+        pass
+
+    @abstractmethod
+    def plot_difference(self, *args, **kwargs):
+        pass
+
+
 class Binning(ABC):
     def __init__(self, **kwargs):
         self._bin_thresholds: List[float] = []

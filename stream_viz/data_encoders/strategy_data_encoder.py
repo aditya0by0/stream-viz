@@ -59,4 +59,5 @@ if __name__ == "__main__":
         header=[0, 1, 2],
         index_col=[0, 1],
     )
+    kappa_encoder.encoded_data()
     kappa_encoder.encoded_data.head()
