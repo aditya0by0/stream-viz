@@ -9,15 +9,18 @@ from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 from stream_viz.base import DataEncoder
 
 
-class CfpdssData(DataEncoder, ABC):
+class CfpdssDataEncoder(DataEncoder, ABC):
     def __init__(self):
         super().__init__()
         self._X_encoded_data: pd.DataFrame = pd.DataFrame()
         self._y_encoded_data: pd.Series = pd.Series()
         self.original_categorical_cols: List[str] = []
         self.original_numerical_cols: List[str] = []
-        self.encoded_categorical_cols: List[str] = []
-        self.encoded_numerical_cols: List[str] = []
+        # self.encoded_categorical_cols: List[str] = []
+        # self.encoded_numerical_cols: List[str] = []
+        self.categorical_column_mapping: dict = {}
+        # No change in numerical col names as of now, kept for future use and code consistency
+        self.numerical_column_mapping: dict = {}
 
     @property
     def X_encoded_data(self) -> pd.DataFrame:
@@ -61,10 +64,18 @@ class CfpdssData(DataEncoder, ABC):
         ]
         X_df_non_categorical = X_df[self.original_numerical_cols]
 
-        X_df_cat_one_hot = self._encode_categorical_data(X_df_categorical)
+        X_df_cat_one_hot, categorical_mapping = self._encode_categorical_data(
+            X_df_categorical
+        )
+        self.categorical_column_mapping = categorical_mapping
 
         if feature_scaling:
             X_df_non_categorical = self._encode_numerical_data(X_df_non_categorical)
+
+        # Note: No change in col. name, placeholder for future use and code consistency
+        self.numerical_column_mapping = dict(
+            zip(X_df_non_categorical.columns, X_df_non_categorical.columns)
+        )
 
         # Concatenate categorical and numerical dataframes
         X_df_encoded = pd.concat(
@@ -84,15 +95,17 @@ class CfpdssData(DataEncoder, ABC):
         self.X_encoded_data = X_df_encoded
         self.y_encoded_data = y_encoded
 
-    def _encode_categorical_data(self, X_df_categorical: pd.DataFrame) -> pd.DataFrame:
+    def _encode_categorical_data(
+        self, X_df_categorical: pd.DataFrame
+    ) -> (pd.DataFrame, dict):
         # One hot encoding - Categorical dataframe
         encoder = OneHotEncoder(sparse_output=False, drop="if_binary", dtype=np.int32)
         one_hot_encoded = encoder.fit_transform(X_df_categorical)
-        self.encoded_categorical_cols = encoder.get_feature_names_out()
-        X_df_cat_one_hot = pd.DataFrame(
-            one_hot_encoded, columns=self.encoded_categorical_cols
-        )
-        return X_df_cat_one_hot
+        encoded_columns = encoder.get_feature_names_out()
+        X_df_cat_one_hot = pd.DataFrame(one_hot_encoded, columns=encoded_columns)
+        # Create mapping from original columns to encoded columns
+        categorical_mapping = dict(zip(X_df_categorical.columns, encoded_columns))
+        return X_df_cat_one_hot, categorical_mapping
 
     def _encode_numerical_data(
         self, X_df_non_categorical: pd.DataFrame
@@ -111,32 +124,34 @@ class CfpdssData(DataEncoder, ABC):
     @property
     def encoded_data(self) -> pd.DataFrame:
         raise NotImplementedError(
-            "`encoded_data`` is not used for Cfpdss dataset. "
+            "`encoded_data` is not used for Cfpdss dataset. "
             "Use `X_encoded` and `y_encoded` instead."
         )
 
     @encoded_data.setter
     def encoded_data(self, value: pd.DataFrame):
         raise NotImplementedError(
-            "`encoded_data`` is not used for Cfpdss dataset. "
+            "`encoded_data` is not used for Cfpdss dataset. "
             "Use `X_encoded` and `y_encoded` instead."
         )
 
 
-class NormalDataEncoder(CfpdssData):
+class NormalDataEncoder(CfpdssDataEncoder):
     pass
 
 
-class MissingDataEncoder(CfpdssData):
+class MissingDataEncoder(CfpdssDataEncoder):
 
-    def _encode_categorical_data(self, X_df_categorical: pd.DataFrame) -> pd.DataFrame:
+    def _encode_categorical_data(
+        self, X_df_categorical: pd.DataFrame
+    ) -> (pd.DataFrame, dict):
         # Record the indices of missing values for each categorical feature
         missing_indices = {
             col: X_df_categorical[col].index[X_df_categorical[col].isna()].tolist()
             for col in self.original_categorical_cols
         }
 
-        # Impute NaN values in categorical features with the most frequent value from the same column, as temporary
+        # Impute NaN values in categorical features with the most frequent value from the same column, as a temporary
         # solution for one hot encoding, inorder to not create an extra one-hot columns for nan values
         X_df_categorical = X_df_categorical.apply(
             lambda col: col.fillna(
@@ -147,12 +162,10 @@ class MissingDataEncoder(CfpdssData):
         # One hot encoding - Categorical data
         encoder = OneHotEncoder(sparse_output=False, drop="if_binary", dtype=np.int32)
         one_hot_encoded = encoder.fit_transform(X_df_categorical)
-        self.encoded_categorical_cols = encoder.get_feature_names_out(
-            self.original_categorical_cols
-        )
+        encoded_columns = encoder.get_feature_names_out(self.original_categorical_cols)
         X_df_cat_one_hot = pd.DataFrame(
             one_hot_encoded,
-            columns=self.encoded_categorical_cols,
+            columns=encoded_columns,
             index=X_df_categorical.index,
         )
 
@@ -165,7 +178,10 @@ class MissingDataEncoder(CfpdssData):
                 for c in cols_to_check:
                     X_df_cat_one_hot.at[index, c] = np.nan
 
-        return X_df_cat_one_hot
+        # Create mapping from original columns to encoded columns
+        categorical_mapping = dict(zip(X_df_categorical.columns, encoded_columns))
+
+        return X_df_cat_one_hot, categorical_mapping
 
 
 if __name__ == "__main__":
@@ -175,6 +191,8 @@ if __name__ == "__main__":
     normal = NormalDataEncoder()
     normal.read_csv_data(filepath_or_buffer=_NORMAL_DATA_PATH)
     normal.encode_data()
+    print("Encoded categorical column mapping:")
+    print(normal.categorical_column_mapping)
     normal.X_encoded_data.head()
     normal.y_encoded_data.head()
 
@@ -185,6 +203,7 @@ if __name__ == "__main__":
         index_col=[0],
     )
     missing.encode_data()
-
+    print("Encoded categorical column mapping:")
+    print(missing.categorical_column_mapping)
     missing.X_encoded_data.head()
     missing.y_encoded_data.head()
