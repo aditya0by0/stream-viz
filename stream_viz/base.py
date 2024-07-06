@@ -57,6 +57,7 @@ class DriftDetector(ABC):
 
     @abstractmethod
     def update(self, x_i: Dict, y_i: int, tpt: int):
+        # self.detect_drift()
         pass
 
     @abstractmethod
