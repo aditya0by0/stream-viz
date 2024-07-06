@@ -1,32 +1,42 @@
-from typing import Optional
+from typing import List, Optional
 
 import pandas as pd
 from river import stream
 
-from stream_viz.base import Streamer
+from stream_viz.base import DriftDetector, Streamer
 from stream_viz.feature_drift.f_drift_detector import FeatureDriftDetector
 from stream_viz.real_drift.r_drift_detector import RealConceptDriftDetector
 
 
 class DataStreamer(Streamer):
 
-    # def __init__(
-    #     self,
-    #     rcd_detector_obj: RealConceptDriftDetector,
-    #     # fd_detector_obj: FeatureDriftDetector,
-    # ):
-    #     self.rcd_detector_obj: RealConceptDriftDetector = rcd_detector_obj
-    #     # self.fd_detector_obj: FeatureDriftDetector = fd_detector_obj
+    def __init__(
+        self,
+        rcd_detector_obj: Optional[RealConceptDriftDetector] = None,
+        fd_detector_obj: Optional[FeatureDriftDetector] = None,
+    ):
+        self.rcd_detector_obj: Optional[RealConceptDriftDetector] = rcd_detector_obj
+        self.fd_detector_obj: Optional[FeatureDriftDetector] = fd_detector_obj
+        self._drift_detectors: List[DriftDetector] = []
+
+        if rcd_detector_obj is not None:
+            self._drift_detectors.append(rcd_detector_obj)
+        if fd_detector_obj is not None:
+            self._drift_detectors.append(fd_detector_obj)
+
+        if not self._drift_detectors:
+            raise ValueError(
+                "Atleast one of Drift Detector object need to provided,"
+                "{RealConceptDriftDetector, FeatureDriftDetector}"
+            )
 
     def stream_data(self, X_df: pd.DataFrame, y_df: pd.Series) -> None:
         timepoint: int = 0
 
         for x_i, y_i in stream.iter_pandas(X_df, y_df):
             # Update stats for real concept drift detector
-            self.rcd_detector_obj.update(x_i, y_i, tpt=timepoint)
-
-            # TODO : update stats for feature drift detector
-
+            for drift_detector in self._drift_detectors:
+                drift_detector.update(x_i, y_i, tpt=timepoint)
             timepoint += 1
 
 
@@ -42,7 +52,11 @@ if __name__ == "__main__":
     )
     missing.encode_data()
 
-    dt_streamer = DataStreamer(rcd_detector_obj=RealConceptDriftDetector())
+    dt_streamer = DataStreamer(
+        rcd_detector_obj=RealConceptDriftDetector(),
+        fd_detector_obj=FeatureDriftDetector(missing.X_encoded_data.columns),
+    )
     dt_streamer.stream_data(X_df=missing.X_encoded_data, y_df=missing.y_encoded_data)
 
     dt_streamer.rcd_detector_obj.plot_drift(start_tpt=100, end_tpt=3000)
+    dt_streamer.fd_detector_obj.plot_drift(missing.X_encoded_data.columns[0])
