@@ -20,9 +20,11 @@ class FeatureDriftDetector(DriftDetector):
         self._moving_avg: pd.DataFrame = pd.DataFrame(columns=features_list)
         self._ks_test_pval: float = ks_test_pval
         self._drift_tp_df: pd.DataFrame = pd.DataFrame(columns=features_list)
+        self._feature_data_df: pd.DataFrame = pd.DataFrame(columns=features_list)
 
     def update(self, x_i: Dict[str, float], y_i: int, tpt: int):
         self._window.append(x_i)
+        self._feature_data_df.loc[tpt] = x_i
 
         if len(self._window) == self.window_size:
             self.detect_drift(tpt)
@@ -57,9 +59,12 @@ class FeatureDriftDetector(DriftDetector):
 
         return False, None
 
-    def plot_drift(self, feature_name, feature_data, window_size=300):
+    def plot_drift(self, feature_name, window_size=None):
+        if window_size is None:
+            window_size = self.window_size
+        feature_data = self._feature_data_df[feature_name]
         plt.figure(figsize=(10, 6))
-        plt.scatter(feature_data.index, feature_data, marker="o")
+        plt.scatter(feature_data.index, feature_data, marker="o", s=2)
 
         moving_mean = feature_data.rolling(window=window_size).mean()
         plt.plot(
@@ -70,22 +75,21 @@ class FeatureDriftDetector(DriftDetector):
             label=f"{feature_name} Moving Mean",
         )
 
-        drift_points, drift_types, moving_avg = self.detect_feature_drift(
-            feature_data, window_size, 3
-        )
+        # drift_points, drift_types, moving_avg = self.detect_feature_drift(
+        #     feature_data, window_size, 3
+        # )
 
         # plt.plot(moving_avg.index, moving_avg, color='orange', linestyle='-', label=f'{feature} Moving Mean with trimming')
 
         drift_type_temp_label = []
-        for idx, drift_point in enumerate(drift_points):
-            drift_type = drift_types[idx]
+        for idx, drift_type in self._drift_tp_df[feature_name].items():
             color = (
                 "red"
                 if drift_type == "Sudden Drift"
                 else "orange" if drift_type == "Linear Drift" else "blue"
             )
             plt.axvline(
-                x=drift_point,
+                x=idx,
                 color=color,
                 linestyle="--",
                 label=(
@@ -115,18 +119,32 @@ class FeatureDriftDetector(DriftDetector):
 
 
 if __name__ == "__main__":
-    from stream_viz.data_encoders.cfpdss_data_encoder import MissingDataEncoder
-    from stream_viz.utils.constants import _MISSING_DATA_PATH
-
-    # Cfpdss data encoding without missing values
-    missing = MissingDataEncoder()
-    missing.read_csv_data(
-        filepath_or_buffer=_MISSING_DATA_PATH,
-        index_col=[0],
+    from stream_viz.data_encoders.cfpdss_data_encoder import (
+        MissingDataEncoder,
+        NormalDataEncoder,
     )
-    missing.encode_data()
+    from stream_viz.data_streamer import DataStreamer
+    from stream_viz.utils.constants import _MISSING_DATA_PATH, _NORMAL_DATA_PATH
 
-    fd_detector = FeatureDriftDetector(missing.X_encoded_data.columns, window_size=100)
+    # Cfpdss data encoding with missing values
+    # missing = MissingDataEncoder()
+    # missing.read_csv_data(
+    #     filepath_or_buffer=_MISSING_DATA_PATH,
+    #     index_col=[0],
+    # )
+    normal = NormalDataEncoder()
+    normal.read_csv_data(_NORMAL_DATA_PATH)
+    normal.encode_data()
+
+    # As the KS test is only for numerical features
+    X_numerical = normal.X_encoded_data[normal.original_numerical_cols]
+
+    dt_streamer = DataStreamer(
+        fd_detector_obj=FeatureDriftDetector(X_numerical.columns)
+    )
+    dt_streamer.stream_data(X_df=X_numerical, y_df=normal.y_encoded_data)
+
+    dt_streamer.fd_detector_obj.plot_drift(feature_name=X_numerical.columns[0])
 
     # ----- Test: Feature Drift Detection for numerical variables on Dummy drift data -----
     # features_list = ["n_feature_1", "n_feature_2"]
