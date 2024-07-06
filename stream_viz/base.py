@@ -7,38 +7,6 @@ import pandas as pd
 from stream_viz.utils.drifts_types import AllDriftType, get_all_drift_types_keys
 
 
-class Base(ABC):
-    def stream_data(self):
-        raise NotImplementedError
-
-    def update(self, x, idx):
-        raise NotImplementedError
-
-    def detect_concept_drift(self):
-        raise NotImplementedError
-
-    def plot_concept_drift(self):
-        raise NotImplementedError
-
-    def feature_drift(self):
-        raise NotImplementedError
-
-    def plot_feature_drift(self, feature):
-        raise NotImplementedError
-
-    def plot_velocity_numerical_var(self, feature):
-        raise NotImplementedError
-
-    def plot_velocity_categorical_var(self, feature):
-        raise NotImplementedError
-
-    def plot_missing_data(self):
-        raise NotImplementedError
-
-    def plot_learning_strategies(self):
-        raise NotImplementedError
-
-
 @dataclass
 class DataEncoder(ABC):
     def __init__(self):
@@ -137,7 +105,6 @@ class Streamer(ABC):
 
 
 class Velocity(ABC):
-
     @abstractmethod
     def plot_velocity(self, *args, **kwargs):
         pass
@@ -146,16 +113,6 @@ class Velocity(ABC):
 class StrategyPlot(ABC):
     @abstractmethod
     def plot_graph(self, *args, **kwargs):
-        self.plot_winner_at_each_tpt(*args, **kwargs)
-        self.plot_difference(*args, **kwargs)
-        pass
-
-    @abstractmethod
-    def plot_winner_at_each_tpt(self, *args, **kwargs):
-        pass
-
-    @abstractmethod
-    def plot_difference(self, *args, **kwargs):
         pass
 
 

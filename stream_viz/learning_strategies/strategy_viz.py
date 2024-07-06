@@ -1,5 +1,6 @@
-from typing import List
+from typing import List, Tuple
 
+import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
@@ -7,14 +8,35 @@ from stream_viz.base import StrategyPlot
 
 
 class LearningStrategyChart(StrategyPlot):
-    def __init__(self):
+    def __init__(self, kappa_df):
         self._legend_handles: List = []
+        self._processed_kappa_df, self._color_dict = self._compute_stats_for_graph(
+            kappa_df
+        )
 
-    def plot_graph(self, kappa_df: pd.DataFrame, start_tpt, end_tpt):
+    @classmethod
+    def _compute_stats_for_graph(
+        cls, kappa_df: pd.DataFrame
+    ) -> Tuple[pd.DataFrame, dict]:
+        _kappa_df = kappa_df.copy(deep=True)
+        max_strategy = _kappa_df.idxmax(axis=1)
+
+        sorted_kappa = _kappa_df.apply(lambda x: np.sort(x)[::-1], axis=1)
+        _kappa_df["First_Kappa"] = sorted_kappa.apply(lambda x: x[0])
+        _kappa_df["Second_Kappa"] = sorted_kappa.apply(lambda x: x[1])
+        _kappa_df["Winner_Strategy"] = max_strategy
+
+        unique_columns = kappa_df.columns
+        color_dict = {
+            strategy: plt.get_cmap("tab10")(i)
+            for i, strategy in enumerate(unique_columns)
+        }
+        return _kappa_df, color_dict
+
+    def plot_graph(self, start_tpt, end_tpt):
         plt.figure(figsize=(18, 6))
 
-        self.plot_winner_at_each_tpt(kappa_df, start_tpt, end_tpt)
-        self.plot_differnce()
+        self.plot_winner_at_each_tpt(start_tpt, end_tpt)
 
         # Create a single legend outside the plot
         plt.legend(
@@ -29,48 +51,62 @@ class LearningStrategyChart(StrategyPlot):
         plt.grid(True)
         plt.show()
 
-    def plot_winner_at_each_tpt(self, kappa_df: pd.DataFrame, start_tpt, end_tpt):
-        # Determine the strategy with the highest kappa at each batch
-        max_strategy = kappa_df.idxmax(axis=1)
-        kappa_window_df = kappa_df.copy(deep=True)
-        kappa_window_df["Max_Kappa"] = kappa_df.max(axis=1)
-        kappa_window_df["Max_Strategy"] = max_strategy
+    def plot_winner_at_each_tpt(self, start_batch, end_batch, step=50):
+        self._check_time_batches(start_batch, end_batch)
 
-        unique_columns = kappa_df.columns
-        # Define colors for each strategy
-        color_dict = {
-            strategy: plt.cm.tab10(i) for i, strategy in enumerate(unique_columns)
-        }
+        batch_list_window = self._processed_kappa_df.loc[
+            start_batch:end_batch
+        ].index.tolist()
 
-        # Plot the line with colors based on the strategy with the highest kappa
-        kappa_window_df = kappa_window_df.loc[start_tpt:end_tpt]
-        for i in range(len(kappa_window_df) - 1):
-            x = [kappa_window_df.index[i], kappa_window_df.index[i + 1]]
+        for i in range(len(batch_list_window) - 1):
+            batch_i = batch_list_window[i]
+            batch_next = batch_list_window[i + 1]
+            x = [batch_i, batch_next]
             y = [
-                kappa_window_df["Max_Kappa"].iloc[i],
-                kappa_window_df["Max_Kappa"].iloc[i + 1],
+                self._processed_kappa_df["First_Kappa"].loc[batch_i],
+                self._processed_kappa_df["First_Kappa"].loc[batch_next],
             ]
-            plt.plot(
+            _color = self._color_dict[
+                self._processed_kappa_df["Winner_Strategy"].loc[batch_i]
+            ]
+            plt.plot(x, y, color=_color, marker="o")
+
+            plt.fill_between(
                 x,
-                y,
-                color=color_dict[kappa_window_df["Max_Strategy"].iloc[i]],
-                marker="o",
+                [
+                    self._processed_kappa_df["First_Kappa"].loc[batch_i],
+                    self._processed_kappa_df["First_Kappa"].loc[batch_next],
+                ],
+                [
+                    self._processed_kappa_df["Second_Kappa"].loc[batch_i],
+                    self._processed_kappa_df["Second_Kappa"].loc[batch_next],
+                ],
+                color=_color,
+                alpha=0.3,
             )
 
-        # Add labels and title
         plt.xlabel("Batch")
-        plt.ylabel("Kappa / Normalized differnce within window")
+        plt.ylabel("Kappa / Normalized difference within window")
         plt.title("Kappa Values with Color Indicating Strategy with Highest Score")
 
-        # Create legend handles for the strategies
         legend_handles = [
-            plt.Line2D([0], [0], color=color_dict[strategy], lw=2, label=strategy)
-            for strategy in unique_columns
+            plt.Line2D([0], [0], color=self._color_dict[strategy], lw=2, label=strategy)
+            for strategy in self._processed_kappa_df["Winner_Strategy"].unique()
         ]
         self._legend_handles += legend_handles
 
-    def plot_difference(self):
-        pass
+    def _check_time_batches(self, start_batch, end_batch):
+        if start_batch not in self._processed_kappa_df.index:
+            raise ValueError("Start batch not in data")
+
+        if end_batch not in self._processed_kappa_df.index:
+            raise ValueError("End batch not in data")
+
+        if (
+            start_batch < self._processed_kappa_df.index[0]
+            or start_batch > self._processed_kappa_df.index[-1]
+        ):
+            raise ValueError("Check your start and/or end timepoints")
 
 
 if __name__ == "__main__":
@@ -84,7 +120,6 @@ if __name__ == "__main__":
         index_col=[0, 1],
     )
     kappa_encoder.encode_data()
-    # kappa_encoder.encoded_data.head()
-    LearningStrategyChart().plot_graph(
-        kappa_encoder.encoded_data, start_tpt=11000, end_tpt=13000
+    LearningStrategyChart(kappa_encoder.encoded_data).plot_graph(
+        start_tpt=11000, end_tpt=12950
     )
