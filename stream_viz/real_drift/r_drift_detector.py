@@ -77,7 +77,7 @@ class RealConceptDriftDetector(DriftDetector):
             self.concept_drifts_timepoints.append(tpt)
             self._model = self._model.clone()
 
-    def plot_drift(
+    def plot(
         self,
         start_tpt,
         end_tpt,

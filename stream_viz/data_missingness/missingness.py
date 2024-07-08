@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 from pyampute.exploration.mcar_statistical_tests import MCARTest
 from scipy import stats
 
-from stream_viz.base import InteractivePlot
+from stream_viz.base import InteractivePlot, Plotter
 from stream_viz.utils.binning import DecisionTreeBinning
 
 
@@ -102,9 +102,9 @@ class MarHeatMap:
         return X_df_encoded_m_ind
 
 
-class HeatmapPlotter(InteractivePlot):
+class HeatmapPlotter(InteractivePlot, Plotter):
 
-    def plot_heatmap(self, start, end, features):
+    def plot(self, start, end, features):
         plt.figure(figsize=(15, 6))
         selected_df = self._data_df.iloc[start:end][list(features)]
         ax = sns.heatmap(selected_df.isnull(), cmap="viridis", cbar=False)
@@ -127,8 +127,8 @@ class HeatmapPlotter(InteractivePlot):
 
         plt.show()
 
-    def _plot_function_of_class(self) -> Any:
-        return self.plot_heatmap
+    def _add_interactive_plot(self):
+        super()._add_interactive_plot()
 
 
 if __name__ == "__main__":

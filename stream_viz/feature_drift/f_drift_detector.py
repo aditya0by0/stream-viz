@@ -59,7 +59,7 @@ class FeatureDriftDetector(DriftDetector):
 
         return False, None
 
-    def plot_drift(self, feature_name, window_size=None):
+    def plot(self, feature_name, window_size=None):
         if window_size is None:
             window_size = self.window_size
         feature_data = self._feature_data_df[feature_name]
@@ -144,7 +144,7 @@ if __name__ == "__main__":
     )
     dt_streamer.stream_data(X_df=X_numerical, y_df=normal.y_encoded_data)
 
-    dt_streamer.fd_detector_obj.plot_drift(feature_name=X_numerical.columns[0])
+    dt_streamer.fd_detector_obj.plot(feature_name=X_numerical.columns[0])
 
     # ----- Test: Feature Drift Detection for numerical variables on Dummy drift data -----
     # features_list = ["n_feature_1", "n_feature_2"]

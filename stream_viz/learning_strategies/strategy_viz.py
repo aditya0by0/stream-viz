@@ -33,7 +33,7 @@ class LearningStrategyChart(StrategyPlot):
         }
         return _kappa_df, color_dict
 
-    def plot_graph(self, start_tpt, end_tpt):
+    def plot(self, start_tpt, end_tpt):
         plt.figure(figsize=(18, 6))
 
         self.plot_winner_at_each_tpt(start_tpt, end_tpt)
@@ -120,6 +120,6 @@ if __name__ == "__main__":
         index_col=[0, 1],
     )
     kappa_encoder.encode_data()
-    LearningStrategyChart(kappa_encoder.encoded_data).plot_graph(
+    LearningStrategyChart(kappa_encoder.encoded_data).plot(
         start_tpt=11000, end_tpt=12950
     )

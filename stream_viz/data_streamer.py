@@ -41,8 +41,11 @@ class DataStreamer(Streamer):
 
 
 if __name__ == "__main__":
-    from stream_viz.data_encoders.cfpdss_data_encoder import MissingDataEncoder
-    from stream_viz.utils.constants import _MISSING_DATA_PATH
+    from stream_viz.data_encoders.cfpdss_data_encoder import (
+        MissingDataEncoder,
+        NormalDataEncoder,
+    )
+    from stream_viz.utils.constants import _MISSING_DATA_PATH, _NORMAL_DATA_PATH
 
     # Cfpdss data encoding with missing values
     missing = MissingDataEncoder()
@@ -52,11 +55,18 @@ if __name__ == "__main__":
     )
     missing.encode_data()
 
+    # normal = NormalDataEncoder()
+    # normal.read_csv_data(_NORMAL_DATA_PATH)
+    # normal.encode_data()
+    #
+    # # As the KS test is only for numerical features
+    # X_numerical = normal.X_encoded_data[normal.original_numerical_cols]
+
     dt_streamer = DataStreamer(
         rcd_detector_obj=RealConceptDriftDetector(),
         fd_detector_obj=FeatureDriftDetector(missing.X_encoded_data.columns),
     )
     dt_streamer.stream_data(X_df=missing.X_encoded_data, y_df=missing.y_encoded_data)
 
-    dt_streamer.rcd_detector_obj.plot_drift(start_tpt=100, end_tpt=3000)
-    dt_streamer.fd_detector_obj.plot_drift(missing.X_encoded_data.columns[0])
+    dt_streamer.rcd_detector_obj.plot(start_tpt=100, end_tpt=3000)
+    dt_streamer.fd_detector_obj.plot(missing.X_encoded_data.columns[0])

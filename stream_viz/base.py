@@ -1,12 +1,20 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import pandas as pd
 from IPython.core.display_functions import display
 from ipywidgets import HBox, IntSlider, SelectMultiple, VBox, interactive_output
 
 from stream_viz.utils.drifts_types import AllDriftType, get_all_drift_types_keys
+
+
+class Plotter(ABC):
+    """Abstract class for the classes which plots the data"""
+
+    @abstractmethod
+    def plot(self, *args, **kwargs):
+        pass
 
 
 @dataclass
@@ -52,8 +60,9 @@ class DataEncoder(ABC):
         self._encoded_data = value
 
 
-class DriftDetector(ABC):
+class DriftDetector(Plotter, ABC):
     def __init__(self):
+        super().__init__()
         self._drift_records: List[AllDriftType] = []
         self._valid_keys: set[str] = get_all_drift_types_keys()
 
@@ -67,7 +76,7 @@ class DriftDetector(ABC):
         pass
 
     @abstractmethod
-    def plot_drift(self, start_tpt: int, end_tpt: int, *args, **kwargs):
+    def plot(self, start_tpt: int, end_tpt: int, *args, **kwargs):
         pass
 
     @property
@@ -107,16 +116,12 @@ class Streamer(ABC):
         pass
 
 
-class Velocity(ABC):
-    @abstractmethod
-    def plot_velocity(self, *args, **kwargs):
-        pass
+class Velocity(Plotter, ABC):
+    pass
 
 
-class StrategyPlot(ABC):
-    @abstractmethod
-    def plot_graph(self, *args, **kwargs):
-        pass
+class StrategyPlot(Plotter, ABC):
+    pass
 
 
 class Binning(ABC):
@@ -157,27 +162,24 @@ class Binning(ABC):
         self._binned_data_X = value
 
 
-class InteractivePlot(ABC):
+class InteractivePlot(Plotter, ABC):
     def __init__(self, data_df: pd.DataFrame):
         self._data_df: pd.DataFrame = data_df
         self._default_variables: int = 3
         self._add_sliders()
         self._add_feature_selector()
-        self._add_interactive_plot()
+        # self._add_interactive_plot()
 
     @abstractmethod
-    def _plot_function_of_class(self) -> Any:
-        """Return the function which plots the data of the class"""
-        pass
-
-    def _add_interactive_plot(self):
+    def _add_interactive_plot(self, *args, **kwargs):
         # Link the widgets to the plotting function
         self.interactive_plot = interactive_output(
-            self._plot_function_of_class(),
+            self.plot,
             {
                 "start": self.start_slider,
                 "end": self.end_slider,
                 "features": self.feature_selector,
+                **kwargs,
             },
         )
 
@@ -213,7 +215,8 @@ class InteractivePlot(ABC):
     def _update_end_range(self, *args):
         self.end_slider.min = self.start_slider.value + 1
 
-    def display(self):
+    def display(self, *args, **kwargs):
+        self._add_interactive_plot(*args, **kwargs)
         widgets_box = HBox(
             [VBox([self.start_slider, self.end_slider]), self.feature_selector]
         )
