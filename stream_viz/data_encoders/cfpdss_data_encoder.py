@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -118,7 +118,7 @@ class CfpdssDataEncoder(DataEncoder, ABC):
         )
         return X_df_non_categorical
 
-    def _get_scaler(self) -> OneToOneFeatureMixin | TransformerMixin:
+    def _get_scaler(self) -> Union[OneToOneFeatureMixin, TransformerMixin]:
         return MinMaxScaler()
 
     @property

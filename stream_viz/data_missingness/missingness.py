@@ -1,5 +1,16 @@
+import matplotlib.patches as mpatches
+import numpy as np
 import pandas as pd
 import seaborn as sns
+from IPython.display import display
+from ipywidgets import (
+    HBox,
+    IntSlider,
+    SelectMultiple,
+    VBox,
+    interactive_output,
+    widgets,
+)
 from matplotlib import pyplot as plt
 from pyampute.exploration.mcar_statistical_tests import MCARTest
 from scipy import stats
@@ -97,6 +108,78 @@ class MarHeatMap:
         return X_df_encoded_m_ind
 
 
+class HeatmapPlotter:
+    def __init__(self, dataframe):
+        self.missing_df = dataframe
+
+        # Create sliders and feature selector widgets
+        self.start_slider = IntSlider(
+            min=0,
+            max=self.missing_df.shape[0] - 1,
+            step=1,
+            value=0,
+            description="Start",
+        )
+        self.end_slider = IntSlider(
+            min=0,
+            max=self.missing_df.shape[0] - 1,
+            step=1,
+            value=1000,
+            description="End",
+        )
+        self.feature_selector = SelectMultiple(
+            options=self.missing_df.columns,
+            value=tuple(self.missing_df.columns[:5]),
+            description="Features",
+            style={"description_width": "initial"},
+        )
+
+        # Ensure the end slider always has a value greater than the start slider
+        self.start_slider.observe(self.update_end_range, "value")
+
+        # Link the widgets to the plotting function
+        self.interactive_plot = interactive_output(
+            self.plot_heatmap,
+            {
+                "start": self.start_slider,
+                "end": self.end_slider,
+                "features": self.feature_selector,
+            },
+        )
+
+    def update_end_range(self, *args):
+        self.end_slider.min = self.start_slider.value + 1
+
+    def plot_heatmap(self, start, end, features):
+        plt.figure(figsize=(15, 6))
+        selected_df = self.missing_df.iloc[start:end][list(features)]
+        ax = sns.heatmap(selected_df.isnull(), cmap="viridis", cbar=False)
+        plt.xlabel("Attributes")
+        plt.ylabel("Time Points")
+
+        purple = mpatches.Patch(color="purple", label="not missing")
+        yellow = mpatches.Patch(color="yellow", label="missing")
+        plt.legend(handles=[purple, yellow], loc="upper right")
+
+        # Create depth_list directly with desired values
+        depth_list = np.arange(start, end, 1000)  # Adjust this as needed
+
+        # Calculate y-ticks to match the number of rows in the dataframe
+        yticks = np.linspace(0, selected_df.shape[0] - 1, len(depth_list), dtype=int)
+
+        # Set y-ticks and y-tick labels
+        ax.set_yticks(yticks)
+        ax.set_yticklabels(depth_list)
+
+        plt.show()
+
+    def display(self):
+        widgets_box = HBox(
+            [VBox([self.start_slider, self.end_slider]), self.feature_selector]
+        )
+        display(widgets_box, self.interactive_plot)
+
+
 if __name__ == "__main__":
     from stream_viz.data_encoders.cfpdss_data_encoder import MissingDataEncoder
     from stream_viz.utils.constants import _MISSING_DATA_PATH
@@ -109,10 +192,15 @@ if __name__ == "__main__":
     )
     missing.encode_data()
 
-    dt_binner = DecisionTreeBinning()
-    dt_binner.perform_binning(missing.X_encoded_data, missing.y_encoded_data)
+    # ------------ Test Run : For Mar Heat Map -----------------
+    # dt_binner = DecisionTreeBinning()
+    # dt_binner.perform_binning(missing.X_encoded_data, missing.y_encoded_data)
+    #
+    # mar_hm = MarHeatMap()
+    # mar_hm.plot_graph(
+    #     dt_binner.binned_data_X, start_tpt=200, end_tpt=500, significance_level=0.05
+    # )
 
-    mar_hm = MarHeatMap()
-    mar_hm.plot_graph(
-        dt_binner.binned_data_X, start_tpt=200, end_tpt=500, significance_level=0.05
-    )
+    # ------------ Test Run : For HeatmapPlotter -----------------
+    plotter = HeatmapPlotter(missing.X_encoded_data)
+    plotter.display()
