@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
+from IPython.core.display_functions import display
+from ipywidgets import HBox, IntSlider, SelectMultiple, VBox, interactive_output
 
 from stream_viz.utils.drifts_types import AllDriftType, get_all_drift_types_keys
 
@@ -153,3 +155,66 @@ class Binning(ABC):
         if not isinstance(value, pd.DataFrame):
             raise ValueError("Input must be a Dataframe")
         self._binned_data_X = value
+
+
+class InteractivePlot(ABC):
+    def __init__(self, data_df: pd.DataFrame):
+        self._data_df: pd.DataFrame = data_df
+        self._default_variables: int = 3
+        self._add_sliders()
+        self._add_feature_selector()
+        self._add_interactive_plot()
+
+    @abstractmethod
+    def _plot_function_of_class(self) -> Any:
+        """Return the function which plots the data of the class"""
+        pass
+
+    def _add_interactive_plot(self):
+        # Link the widgets to the plotting function
+        self.interactive_plot = interactive_output(
+            self._plot_function_of_class(),
+            {
+                "start": self.start_slider,
+                "end": self.end_slider,
+                "features": self.feature_selector,
+            },
+        )
+
+    def _add_sliders(self):
+        # Create sliders for start and end timepoints
+        self.start_slider = IntSlider(
+            min=0,
+            max=self._data_df.shape[0] - 1,
+            step=1,
+            value=0,
+            description="Start",
+        )
+        self.end_slider = IntSlider(
+            min=0,
+            max=self._data_df.shape[0] - 1,
+            step=1,
+            value=1000,
+            description="End",
+        )
+        # Ensure the end slider always has a value greater than the start slider
+        self.start_slider.observe(self._update_end_range, "value")
+
+    def _add_feature_selector(self):
+        # Add Feature Selector to select the features dynamically
+        self.feature_selector = SelectMultiple(
+            options=self._data_df.columns,
+            # Select first 3 as default variables
+            value=tuple(self._data_df.columns[: self._default_variables]),
+            description="Features",
+            style={"description_width": "initial"},
+        )
+
+    def _update_end_range(self, *args):
+        self.end_slider.min = self.start_slider.value + 1
+
+    def display(self):
+        widgets_box = HBox(
+            [VBox([self.start_slider, self.end_slider]), self.feature_selector]
+        )
+        display(widgets_box, self.interactive_plot)

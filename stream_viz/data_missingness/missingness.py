@@ -1,20 +1,14 @@
+from typing import Any
+
 import matplotlib.patches as mpatches
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from IPython.display import display
-from ipywidgets import (
-    HBox,
-    IntSlider,
-    SelectMultiple,
-    VBox,
-    interactive_output,
-    widgets,
-)
 from matplotlib import pyplot as plt
 from pyampute.exploration.mcar_statistical_tests import MCARTest
 from scipy import stats
 
+from stream_viz.base import InteractivePlot
 from stream_viz.utils.binning import DecisionTreeBinning
 
 
@@ -108,51 +102,11 @@ class MarHeatMap:
         return X_df_encoded_m_ind
 
 
-class HeatmapPlotter:
-    def __init__(self, dataframe):
-        self.missing_df = dataframe
-
-        # Create sliders and feature selector widgets
-        self.start_slider = IntSlider(
-            min=0,
-            max=self.missing_df.shape[0] - 1,
-            step=1,
-            value=0,
-            description="Start",
-        )
-        self.end_slider = IntSlider(
-            min=0,
-            max=self.missing_df.shape[0] - 1,
-            step=1,
-            value=1000,
-            description="End",
-        )
-        self.feature_selector = SelectMultiple(
-            options=self.missing_df.columns,
-            value=tuple(self.missing_df.columns[:5]),
-            description="Features",
-            style={"description_width": "initial"},
-        )
-
-        # Ensure the end slider always has a value greater than the start slider
-        self.start_slider.observe(self.update_end_range, "value")
-
-        # Link the widgets to the plotting function
-        self.interactive_plot = interactive_output(
-            self.plot_heatmap,
-            {
-                "start": self.start_slider,
-                "end": self.end_slider,
-                "features": self.feature_selector,
-            },
-        )
-
-    def update_end_range(self, *args):
-        self.end_slider.min = self.start_slider.value + 1
+class HeatmapPlotter(InteractivePlot):
 
     def plot_heatmap(self, start, end, features):
         plt.figure(figsize=(15, 6))
-        selected_df = self.missing_df.iloc[start:end][list(features)]
+        selected_df = self._data_df.iloc[start:end][list(features)]
         ax = sns.heatmap(selected_df.isnull(), cmap="viridis", cbar=False)
         plt.xlabel("Attributes")
         plt.ylabel("Time Points")
@@ -173,11 +127,8 @@ class HeatmapPlotter:
 
         plt.show()
 
-    def display(self):
-        widgets_box = HBox(
-            [VBox([self.start_slider, self.end_slider]), self.feature_selector]
-        )
-        display(widgets_box, self.interactive_plot)
+    def _plot_function_of_class(self) -> Any:
+        return self.plot_heatmap
 
 
 if __name__ == "__main__":
