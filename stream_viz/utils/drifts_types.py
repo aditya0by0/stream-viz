@@ -16,27 +16,83 @@ __all__ = [
 
 
 class DriftPeriod(TypedDict):
+    """
+    Represents the start and end time points of a drift period.
+
+    Attributes:
+    ----------
+    start_tp : int
+        Start time point of the drift period.
+    end_tp : int
+        End time point of the drift period.
+    """
+
     start_tp: int
     end_tp: int
 
 
 class Drift(TypedDict):
+    """
+    Represents a generic drift type with a drift period.
+
+    Attributes:
+    ----------
+    drift : DriftPeriod
+        Drift period defined by start and end time points.
+    """
+
     drift: DriftPeriod
 
 
 class WarningLvl(TypedDict):
+    """
+    Represents a warning level associated with a drift period.
+
+    Attributes:
+    ----------
+    warning_lvl : DriftPeriod
+        Warning level period defined by start and end time points.
+    """
+
     warning_lvl: DriftPeriod
 
 
 class LinearDrift(TypedDict):
+    """
+    Represents a linear drift type with a drift period.
+
+    Attributes:
+    ----------
+    linear_drift : DriftPeriod
+        Linear drift period defined by start and end time points.
+    """
+
     linear_drift: DriftPeriod
 
 
 class SuddenDrift(TypedDict):
+    """
+    Represents a sudden drift type with a drift period.
+
+    Attributes:
+    ----------
+    sudden_drift : DriftPeriod
+        Sudden drift period defined by start and end time points.
+    """
+
     sudden_drift: DriftPeriod
 
 
 class GradualDrift(TypedDict):
+    """
+    Represents a gradual drift type with a drift period.
+
+    Attributes:
+    ----------
+    gradual_drift : DriftPeriod
+        Gradual drift period defined by start and end time points.
+    """
+
     gradual_drift: DriftPeriod
 
 
@@ -50,7 +106,14 @@ RealConceptDriftType = Union[_rcd_classes]
 
 
 def get_rcd_drift_type_keys() -> Set[str]:
-    """Get the valid keys for Real Concept Drift types."""
+    """
+    Get the valid keys for Real Concept Drift types.
+
+    Returns:
+    -------
+    Set[str]
+        A set of valid keys present in Real Concept Drift type definitions.
+    """
     valid_keys = set()
     for cls in _rcd_classes:
         valid_keys.update(cls.__annotations__.keys())
@@ -58,7 +121,14 @@ def get_rcd_drift_type_keys() -> Set[str]:
 
 
 def get_fd_drift_type_keys() -> Set[str]:
-    """Get the valid keys for Feature Drift types."""
+    """
+    Get the valid keys for Feature Drift types.
+
+    Returns:
+    -------
+    Set[str]
+        A set of valid keys present in Feature Drift type definitions.
+    """
     valid_keys = set()
     for cls in _fd_classes:
         valid_keys.update(cls.__annotations__.keys())
@@ -66,7 +136,14 @@ def get_fd_drift_type_keys() -> Set[str]:
 
 
 def get_all_drift_types_keys() -> Set[str]:
-    """Get the valid keys for Feature Drift types."""
+    """
+    Get the valid keys for all Drift types.
+
+    Returns:
+    -------
+    Set[str]
+        A set of valid keys present in all Drift type definitions.
+    """
     valid_keys = set()
     for cls in _all_classes:
         valid_keys.update(cls.__annotations__.keys())
