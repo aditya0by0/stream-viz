@@ -8,7 +8,16 @@ from stream_viz.base import StrategyPlot
 
 
 class LearningStrategyChart(StrategyPlot):
-    def __init__(self, kappa_df):
+    """
+    A class to plot learning strategies based on Kappa statistics.
+
+    Parameters
+    ----------
+    kappa_df : pd.DataFrame
+        DataFrame containing Kappa values for different strategies over time.
+    """
+
+    def __init__(self, kappa_df: pd.DataFrame):
         self._legend_handles: List = []
         self._processed_kappa_df, self._color_dict = self._compute_stats_for_graph(
             kappa_df
@@ -18,6 +27,19 @@ class LearningStrategyChart(StrategyPlot):
     def _compute_stats_for_graph(
         cls, kappa_df: pd.DataFrame
     ) -> Tuple[pd.DataFrame, dict]:
+        """
+        Compute statistics for graph plotting from the given Kappa DataFrame.
+
+        Parameters
+        ----------
+        kappa_df : pd.DataFrame
+            DataFrame containing Kappa values for different strategies over time.
+
+        Returns
+        -------
+        Tuple[pd.DataFrame, dict]
+            A tuple containing the processed DataFrame with additional statistics and a color dictionary for strategies.
+        """
         _kappa_df = kappa_df.copy(deep=True)
         max_strategy = _kappa_df.idxmax(axis=1)
 
@@ -31,11 +53,21 @@ class LearningStrategyChart(StrategyPlot):
             strategy: plt.get_cmap("tab10")(i)
             for i, strategy in enumerate(unique_columns)
         }
+
         return _kappa_df, color_dict
 
-    def plot(self, start_tpt, end_tpt):
-        plt.figure(figsize=(18, 6))
+    def plot(self, start_tpt: int, end_tpt: int) -> None:
+        """
+        Plot the learning strategy chart.
 
+        Parameters
+        ----------
+        start_tpt : int
+            Start timepoint for plotting.
+        end_tpt : int
+            End timepoint for plotting.
+        """
+        plt.figure(figsize=(18, 6))
         self.plot_winner_at_each_tpt(start_tpt, end_tpt)
 
         # Create a single legend outside the plot
@@ -51,7 +83,21 @@ class LearningStrategyChart(StrategyPlot):
         plt.grid(True)
         plt.show()
 
-    def plot_winner_at_each_tpt(self, start_batch, end_batch, step=50):
+    def plot_winner_at_each_tpt(
+        self, start_batch: int, end_batch: int, step: int = 50
+    ) -> None:
+        """
+        Plot the winner strategy at each timepoint within the specified range.
+
+        Parameters
+        ----------
+        start_batch : int
+            Start batch for plotting.
+        end_batch : int
+            End batch for plotting.
+        step : int, optional
+            Step size for the batches, by default 50.
+        """
         self._check_time_batches(start_batch, end_batch)
 
         batch_list_window = self._processed_kappa_df.loc[
@@ -95,7 +141,22 @@ class LearningStrategyChart(StrategyPlot):
         ]
         self._legend_handles += legend_handles
 
-    def _check_time_batches(self, start_batch, end_batch):
+    def _check_time_batches(self, start_batch: int, end_batch: int) -> None:
+        """
+        Check if the specified time batches are valid.
+
+        Parameters
+        ----------
+        start_batch : int
+            Start batch for checking.
+        end_batch : int
+            End batch for checking.
+
+        Raises
+        ------
+        ValueError
+            If start or end batch is not in the data or out of range.
+        """
         if start_batch not in self._processed_kappa_df.index:
             raise ValueError("Start batch not in data")
 
@@ -113,6 +174,7 @@ if __name__ == "__main__":
     from stream_viz.data_encoders.strategy_data_encoder import KappaStrategyDataEncoder
     from stream_viz.utils.constants import _LEARNING_STRATEGY_DATA_PATH
 
+    # Instantiate and encode the Kappa strategy data
     kappa_encoder = KappaStrategyDataEncoder()
     kappa_encoder.read_csv_data(
         filepath_or_buffer=_LEARNING_STRATEGY_DATA_PATH,
@@ -120,6 +182,8 @@ if __name__ == "__main__":
         index_col=[0, 1],
     )
     kappa_encoder.encode_data()
+
+    # Create the learning strategy chart and plot it
     LearningStrategyChart(kappa_encoder.encoded_data).plot(
         start_tpt=11000, end_tpt=12950
     )
