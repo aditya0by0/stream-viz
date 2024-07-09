@@ -13,6 +13,22 @@ from stream_viz.utils.binning import DecisionTreeBinning
 
 
 class MarHeatMap:
+    """
+    Class to compute and visualize association between categorical columns and missing indicator columns
+    using chi-square test.
+
+    Parameters:
+    ----------
+    cat_col_regex : str, optional
+        Regular expression to select categorical columns, default is r'^c\d*'.
+    bin_n_col_regex : str, optional
+        Regular expression to select binned numerical columns, default is r'bin_idx*n*'.
+    na_col_regex : str, optional
+        Regular expression to select missing indicator columns, default is r'is_na_*\d*'.
+    na_col_name : str, optional
+        Prefix for generated missing indicator columns, default is 'is_na_'.
+    """
+
     def __init__(self, **kwargs):
         self._cat_col_regex: str = kwargs.get("cat_col_regex", r"^c\d*")
         self._bin_n_col_regex: str = kwargs.get("bin_n_col_regex", r"bin_idx*n*")
@@ -20,6 +36,19 @@ class MarHeatMap:
         self._na_col_name: str = kwargs.get("na_col_name", "is_na_")
 
     def compute_mar_matrix(self, X_df_encoded_m_ind: pd.DataFrame) -> pd.DataFrame:
+        """
+        Compute matrix of p-values from chi-square tests between categorical and missing indicator columns.
+
+        Parameters:
+        ----------
+        X_df_encoded_m_ind : pd.DataFrame
+            Encoded dataframe containing categorical and missing indicator columns.
+
+        Returns:
+        -------
+        pd.DataFrame
+            Matrix of p-values where rows correspond to categorical columns and columns to missing indicator columns.
+        """
         categorical_columns = X_df_encoded_m_ind.filter(
             regex=self._cat_col_regex
         ).columns
@@ -47,9 +76,23 @@ class MarHeatMap:
     def plot_graph(
         self, X_df_encoded_m_ind, start_tpt=200, end_tpt=500, significance_level=0.05
     ):
+        """
+        Plot heatmap of p-values from chi-square tests with annotations highlighting significant associations.
+
+        Parameters:
+        ----------
+        X_df_encoded_m_ind : pd.DataFrame
+            Encoded dataframe containing categorical and missing indicator columns.
+        start_tpt : int, optional
+            Starting time point for plotting, default is 200.
+        end_tpt : int, optional
+            Ending time point for plotting, default is 500.
+        significance_level : float, optional
+            Threshold for significance level, default is 0.05.
+        """
         # Create a mask for p-values <= 0.05
         X_data = X_df_encoded_m_ind.iloc[start_tpt:end_tpt]
-        X_data = self._add_null_indicator_cols(X_data)
+        X_data = self._add_missing_indicator_cols(X_data)
         p_value_matrix = self.compute_mar_matrix(X_data)
 
         # Create a heatmap with highlighting
@@ -93,7 +136,20 @@ class MarHeatMap:
         plt.title(f"Chi-Square Test p-values")
         plt.show()
 
-    def _add_null_indicator_cols(self, X_df_encoded_m):
+    def _add_missing_indicator_cols(self, X_df_encoded_m):
+        """
+        Add missing indicator columns to the dataframe.
+
+        Parameters:
+        ----------
+        X_df_encoded_m : pd.DataFrame
+            Encoded dataframe containing columns to add missing indicators for.
+
+        Returns:
+        -------
+        pd.DataFrame
+            Dataframe with added missing indicator columns.
+        """
         X_df_encoded_m_ind = X_df_encoded_m.copy(deep=True)
         for col in X_df_encoded_m.filter(regex="^(?!.*bin_idx)").columns:
             X_df_encoded_m_ind[self._na_col_name + col] = (
@@ -103,8 +159,33 @@ class MarHeatMap:
 
 
 class HeatmapPlotter(InteractivePlot, Plotter):
+    """
+    Plotter class for visualizing missing data as a heatmap.
+
+    Parameters:
+    ----------
+    data_df : pd.DataFrame
+        DataFrame containing the data to plot.
+
+    Methods:
+    -------
+    plot(start, end, features):
+        Plot heatmap of missing values across specified features and time points.
+    """
 
     def plot(self, start, end, features):
+        """
+        Plot heatmap of missing values.
+
+        Parameters:
+        ----------
+        start : int
+            Starting index for the slice of data to plot.
+        end : int
+            Ending index for the slice of data to plot.
+        features : list
+            List of features (columns) to include in the heatmap.
+        """
         plt.figure(figsize=(15, 6))
         selected_df = self._data_df.iloc[start:end][list(features)]
         ax = sns.heatmap(selected_df.isnull(), cmap="viridis", cbar=False)
