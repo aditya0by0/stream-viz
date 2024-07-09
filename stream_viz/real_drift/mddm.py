@@ -1,3 +1,8 @@
+# Reference:
+# Pesaranghader, A., Viktor, H.L., & Paquet, E. (2017).
+# McDiarmid Drift Detection Methods for Evolving Data Streams. 2018
+# International Joint Conference on Neural Networks (IJCNN), 1-9.
+
 import math
 
 
