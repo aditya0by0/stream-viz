@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import List, Optional, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -10,6 +10,14 @@ from stream_viz.base import DataEncoder
 
 
 class CfpdssDataEncoder(DataEncoder, ABC):
+    """
+    Base class for encoding CFpdss datasets.
+
+    Parameters
+    ----------
+    None
+    """
+
     def __init__(self):
         super().__init__()
         self._X_encoded_data: pd.DataFrame = pd.DataFrame()
@@ -24,18 +32,57 @@ class CfpdssDataEncoder(DataEncoder, ABC):
 
     @property
     def X_encoded_data(self) -> pd.DataFrame:
+        """
+        Returns the encoded features DataFrame.
+
+        Returns
+        -------
+        pd.DataFrame
+            Encoded features DataFrame.
+
+        Raises
+        ------
+        ValueError
+            If the encoded DataFrame is empty.
+        """
         if self._X_encoded_data is None or self._X_encoded_data.empty:
             raise ValueError("Encoded Data is empty. Please call `encode_data` method")
         return self._X_encoded_data
 
     @X_encoded_data.setter
     def X_encoded_data(self, value: pd.DataFrame):
+        """
+        Sets the encoded features DataFrame.
+
+        Parameters
+        ----------
+        value : pd.DataFrame
+            Encoded features DataFrame.
+
+        Raises
+        ------
+        ValueError
+            If the value is not a pandas DataFrame.
+        """
         if not isinstance(value, pd.DataFrame):
             raise ValueError("encoded_data must be a pandas DataFrame")
         self._X_encoded_data = value
 
     @property
     def y_encoded_data(self) -> pd.Series:
+        """
+        Returns the encoded target Series.
+
+        Returns
+        -------
+        pd.Series
+            Encoded target Series.
+
+        Raises
+        ------
+        ValueError
+            If the encoded Series is empty.
+        """
         if self._y_encoded_data is None or self._y_encoded_data.empty:
             raise ValueError(
                 "encoded_data Data is empty. Please call `encode_data` method"
@@ -44,12 +91,38 @@ class CfpdssDataEncoder(DataEncoder, ABC):
 
     @y_encoded_data.setter
     def y_encoded_data(self, value: pd.Series):
+        """
+        Sets the encoded target Series.
+
+        Parameters
+        ----------
+        value : pd.Series
+            Encoded target Series.
+
+        Raises
+        ------
+        ValueError
+            If the value is not a pandas Series.
+        """
         if not isinstance(value, pd.Series):
             raise ValueError("encoded_data must be a pandas Series")
         self._y_encoded_data = value
 
     def encode_data(self, feature_scaling: Optional[bool] = True, **kwargs) -> None:
+        """
+        Encodes the dataset into numerical format.
 
+        Parameters
+        ----------
+        feature_scaling : Optional[bool], default=True
+            Whether to apply feature scaling to numerical columns.
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        None
+        """
         target_variable_name = kwargs.get("target_variable_name", "class")
 
         X_df = self.original_data.drop(columns=target_variable_name)
@@ -78,13 +151,7 @@ class CfpdssDataEncoder(DataEncoder, ABC):
         )
 
         # Concatenate categorical and numerical dataframes
-        X_df_encoded = pd.concat(
-            [
-                X_df_cat_one_hot,
-                X_df_non_categorical,
-            ],
-            axis=1,
-        )
+        X_df_encoded = pd.concat([X_df_cat_one_hot, X_df_non_categorical], axis=1)
 
         # Encoding the target variable
         y_df = self.original_data[[target_variable_name]]
@@ -97,8 +164,20 @@ class CfpdssDataEncoder(DataEncoder, ABC):
 
     def _encode_categorical_data(
         self, X_df_categorical: pd.DataFrame
-    ) -> (pd.DataFrame, dict):
-        # One hot encoding - Categorical dataframe
+    ) -> Tuple[pd.DataFrame, dict]:
+        """
+        Encodes categorical data using one-hot encoding.
+
+        Parameters
+        ----------
+        X_df_categorical : pd.DataFrame
+            DataFrame containing categorical features.
+
+        Returns
+        -------
+        Tuple[pd.DataFrame, dict]
+            Encoded DataFrame and a dictionary mapping original columns to encoded columns.
+        """
         encoder = OneHotEncoder(sparse_output=False, drop="if_binary", dtype=np.int32)
         one_hot_encoded = encoder.fit_transform(X_df_categorical)
         encoded_columns = encoder.get_feature_names_out()
@@ -110,7 +189,19 @@ class CfpdssDataEncoder(DataEncoder, ABC):
     def _encode_numerical_data(
         self, X_df_non_categorical: pd.DataFrame
     ) -> pd.DataFrame:
-        # Feature scaling for numerical dataframe
+        """
+        Applies feature scaling to numerical data.
+
+        Parameters
+        ----------
+        X_df_non_categorical : pd.DataFrame
+            DataFrame containing numerical features.
+
+        Returns
+        -------
+        pd.DataFrame
+            Scaled numerical features DataFrame.
+        """
         scaler = self._get_scaler()
         X_df_non_categorical = pd.DataFrame(
             scaler.fit_transform(X_df_non_categorical),
@@ -119,10 +210,26 @@ class CfpdssDataEncoder(DataEncoder, ABC):
         return X_df_non_categorical
 
     def _get_scaler(self) -> Union[OneToOneFeatureMixin, TransformerMixin]:
+        """
+        Returns the scaler to be used for feature scaling.
+
+        Returns
+        -------
+        Union[OneToOneFeatureMixin, TransformerMixin]
+            Scaler instance.
+        """
         return MinMaxScaler()
 
     @property
     def encoded_data(self) -> pd.DataFrame:
+        """
+        Raises an error since `encoded_data` is not used for Cfpdss dataset.
+
+        Returns
+        -------
+        pd.DataFrame
+            Not implemented.
+        """
         raise NotImplementedError(
             "`encoded_data` is not used for Cfpdss dataset. "
             "Use `X_encoded` and `y_encoded` instead."
@@ -130,6 +237,14 @@ class CfpdssDataEncoder(DataEncoder, ABC):
 
     @encoded_data.setter
     def encoded_data(self, value: pd.DataFrame):
+        """
+        Raises an error since `encoded_data` is not used for Cfpdss dataset.
+
+        Parameters
+        ----------
+        value : pd.DataFrame
+            Not implemented.
+        """
         raise NotImplementedError(
             "`encoded_data` is not used for Cfpdss dataset. "
             "Use `X_encoded` and `y_encoded` instead."
@@ -137,14 +252,34 @@ class CfpdssDataEncoder(DataEncoder, ABC):
 
 
 class NormalDataEncoder(CfpdssDataEncoder):
+    """
+    Class for encoding CFpdss datasets without missing values.
+    """
+
     pass
 
 
 class MissingDataEncoder(CfpdssDataEncoder):
+    """
+    Class for encoding CFpdss datasets with missing values.
+    """
 
     def _encode_categorical_data(
         self, X_df_categorical: pd.DataFrame
-    ) -> (pd.DataFrame, dict):
+    ) -> Tuple[pd.DataFrame, dict]:
+        """
+        Encodes categorical data with handling for missing values.
+
+        Parameters
+        ----------
+        X_df_categorical : pd.DataFrame
+            DataFrame containing categorical features.
+
+        Returns
+        -------
+        Tuple[pd.DataFrame, dict]
+            Encoded DataFrame and a dictionary mapping original columns to encoded columns.
+        """
         # Record the indices of missing values for each categorical feature
         missing_indices = {
             col: X_df_categorical[col].index[X_df_categorical[col].isna()].tolist()
@@ -164,9 +299,7 @@ class MissingDataEncoder(CfpdssDataEncoder):
         one_hot_encoded = encoder.fit_transform(X_df_categorical)
         encoded_columns = encoder.get_feature_names_out(self.original_categorical_cols)
         X_df_cat_one_hot = pd.DataFrame(
-            one_hot_encoded,
-            columns=encoded_columns,
-            index=X_df_categorical.index,
+            one_hot_encoded, columns=encoded_columns, index=X_df_categorical.index
         )
 
         # Replace the imputed values back with NaNs in the encoded DataFrame
