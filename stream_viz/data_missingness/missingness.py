@@ -1,6 +1,7 @@
-from typing import Any
+from typing import Optional, Union
 
 import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -9,99 +10,136 @@ from pyampute.exploration.mcar_statistical_tests import MCARTest
 from scipy import stats
 
 from stream_viz.base import InteractivePlot, Plotter
+from stream_viz.data_encoders.cfpdss_data_encoder import (
+    MissingDataEncoder,
+    NormalDataEncoder,
+)
 from stream_viz.utils.binning import DecisionTreeBinning
 
 
-class MarHeatMap:
+class MarHeatMap(Plotter):
     """
-    Class to compute and visualize association between categorical columns and missing indicator columns
-    using chi-square test.
+    Class to compute and visualize the association between categorical columns and missing indicator columns
+    using the chi-square test.
 
     Parameters:
     ----------
-    cat_col_regex : str, optional
-        Regular expression to select categorical columns, default is r'^c\d*'.
-    bin_n_col_regex : str, optional
-        Regular expression to select binned numerical columns, default is r'bin_idx*n*'.
-    na_col_regex : str, optional
-        Regular expression to select missing indicator columns, default is r'is_na_*\d*'.
+    normal_encoder_obj : NormalDataEncoder
+        Object responsible for encoding normal data.
+    missing_encoder_obj : MissingDataEncoder
+        Object responsible for encoding missing data.
     na_col_name : str, optional
-        Prefix for generated missing indicator columns, default is 'is_na_'.
+        Prefix for generated missing indicator columns. Default is 'is_na_'.
     """
 
-    def __init__(self, **kwargs):
-        self._cat_col_regex: str = kwargs.get("cat_col_regex", r"^c\d*")
-        self._bin_n_col_regex: str = kwargs.get("bin_n_col_regex", r"bin_idx*n*")
-        self._na_col_regex: str = kwargs.get("na_col_regex", r"is_na_*\d*")
-        self._na_col_name: str = kwargs.get("na_col_name", "is_na_")
-        # self._X_data =  X_data
+    def __init__(
+        self,
+        normal_encoder_obj: NormalDataEncoder,
+        missing_encoder_obj: MissingDataEncoder,
+        na_col_name: str = "is_na_",
+    ):
+        self._na_col_name: str = na_col_name
+        self._normal_encoder = normal_encoder_obj
+        self._missing_encoder = missing_encoder_obj
+        self._dt_binner_normal = DecisionTreeBinning()
+        self._dt_binner_normal.perform_binning(
+            self._normal_encoder.X_encoded_data, self._normal_encoder.y_encoded_data
+        )
 
-    def compute_mar_matrix(self, X_df_encoded_m_ind: pd.DataFrame) -> pd.DataFrame:
+    def compute_mar_matrix(
+        self, start_tpt: int = 200, end_tpt: int = 500
+    ) -> pd.DataFrame:
         """
-        Compute matrix of p-values from chi-square tests between categorical and missing indicator columns.
+        Compute a matrix of p-values from chi-square tests between categorical and missing indicator columns.
 
         Parameters:
         ----------
-        X_df_encoded_m_ind : pd.DataFrame
-            Encoded dataframe containing categorical and missing indicator columns.
+        start_tpt : int, optional
+            Starting time point for the data slice. Default is 200.
+        end_tpt : int, optional
+            Ending time point for the data slice. Default is 500.
 
         Returns:
         -------
         pd.DataFrame
             Matrix of p-values where rows correspond to categorical columns and columns to missing indicator columns.
         """
-        categorical_columns = X_df_encoded_m_ind.filter(
-            regex=self._cat_col_regex
-        ).columns
-        binned_numerical_columns = X_df_encoded_m_ind.filter(
-            regex=self._bin_n_col_regex
-        ).columns
-        col_list = list(categorical_columns) + list(binned_numerical_columns)
+        col_list = list(
+            self._normal_encoder.categorical_column_mapping.values()
+        ) + list(self._dt_binner_normal.column_mapping.values())
 
-        is_na_columns = X_df_encoded_m_ind.filter(regex=self._na_col_regex).columns
+        X_missing_indicator_df = self._get_missing_indicator_df()
+        p_value_matrix = pd.DataFrame(
+            index=col_list, columns=X_missing_indicator_df.columns
+        )
 
-        p_value_matrix = pd.DataFrame(index=col_list, columns=is_na_columns)
+        sliced_data_df = self._dt_binner_normal.binned_data_X[start_tpt:end_tpt]
+        sliced_m_ind_df = X_missing_indicator_df[start_tpt:end_tpt]
 
-        for col1 in col_list:
-            for col2 in is_na_columns:
+        for data_col in col_list:
+            for m_ind_col in X_missing_indicator_df.columns:
                 # Create a contingency table
                 contingency_table = pd.crosstab(
-                    X_df_encoded_m_ind[col1], X_df_encoded_m_ind[col2]
+                    sliced_data_df[data_col],
+                    sliced_m_ind_df[m_ind_col],
                 )
                 # Perform Chi-Square test
                 chi2_stat, p_val, dof, ex = stats.chi2_contingency(contingency_table)
-                p_value_matrix.loc[col1, col2] = p_val
+                p_value_matrix.loc[data_col, m_ind_col] = p_val
 
         return p_value_matrix.astype(float)
 
-    def plot_graph(
-        self, X_df_encoded_m_ind, start_tpt=200, end_tpt=500, significance_level=0.05
-    ):
+    def _custom_annotation_heatmap(
+        self, p_value_matrix: pd.DataFrame, threshold: float
+    ) -> np.ndarray:
         """
-        Plot heatmap of p-values from chi-square tests with annotations highlighting significant associations.
+        Generate a custom annotation matrix for the heatmap based on a threshold.
 
         Parameters:
         ----------
-        X_df_encoded_m_ind : pd.DataFrame
-            Encoded dataframe containing categorical and missing indicator columns.
-        start_tpt : int, optional
-            Starting time point for plotting, default is 200.
-        end_tpt : int, optional
-            Ending time point for plotting, default is 500.
-        significance_level : float, optional
-            Threshold for significance level, default is 0.05.
-        """
-        # Create a mask for p-values <= 0.05
-        X_data = X_df_encoded_m_ind.iloc[start_tpt:end_tpt]
-        X_data = self._add_missing_indicator_cols(X_data)
-        p_value_matrix = self.compute_mar_matrix(X_data)
-        self._X_data = X_data
+        p_value_matrix : pd.DataFrame
+            Matrix of p-values to be annotated.
+        threshold : float
+            Threshold below which values will not be annotated.
 
-        # Create a heatmap with highlighting
+        Returns:
+        -------
+        np.ndarray
+            Matrix of annotations where cells below the threshold are empty strings.
+        """
+        annot = np.full_like(
+            p_value_matrix.values, "", dtype=object
+        )  # Default to empty string
+        for i in range(p_value_matrix.shape[0]):
+            for j in range(p_value_matrix.shape[1]):
+                val = p_value_matrix.iloc[i, j]
+                if val > threshold:
+                    annot[i, j] = f"{val:.3f}"  # Format as string
+        return annot
+
+    def plot(
+        self, start_tpt: int = 200, end_tpt: int = 500, significance_level: float = 0.05
+    ):
+        """
+        Plot a heatmap of p-values from chi-square tests with annotations highlighting significant associations.
+
+        Parameters:
+        ----------
+        start_tpt : int, optional
+            Starting time point for the data slice. Default is 200.
+        end_tpt : int, optional
+            Ending time point for the data slice. Default is 500.
+        significance_level : float, optional
+            Threshold for significance level. Values less than or equal to this will be highlighted. Default is 0.05.
+        """
+        p_value_matrix = self.compute_mar_matrix(start_tpt, end_tpt)
+        annot = self._custom_annotation_heatmap(p_value_matrix, significance_level)
+
+        # Create the heatmap
         plt.figure(figsize=(12, 8))
         heatmap = sns.heatmap(
             p_value_matrix,
-            # annot=True,
+            annot=True,  # annot, not using as of now due to standard error in seaborn
             cmap="coolwarm",
             cbar_kws={"label": "p-value"},
             linewidths=0.5,
@@ -109,7 +147,7 @@ class MarHeatMap:
             annot_kws={"size": 10},
         )
 
-        # Highlight cells with p-value <= 0.05 with a different annotation
+        # Highlight cells with p-value <= significance_level with a different annotation
         for i in range(p_value_matrix.shape[0]):
             for j in range(p_value_matrix.shape[1]):
                 p_val = p_value_matrix.iloc[i, j]
@@ -117,22 +155,10 @@ class MarHeatMap:
                     plt.text(
                         j + 0.5,
                         i + 0.5,
-                        f"{p_val:.3f}",
+                        f"{p_val:.3f}",  # f"$\\underline{{{p_val:.3f}}}$",  # Underlined LaTeX formatting
                         horizontalalignment="center",
                         verticalalignment="center",
-                        fontsize=10,
-                        weight="bold",
                         color="red",
-                        fontstyle="italic",
-                    )
-                else:
-                    plt.text(
-                        j + 0.5,
-                        i + 0.5,
-                        f"{p_val:.3f}",
-                        horizontalalignment="center",
-                        verticalalignment="center",
-                        fontsize=10,
                     )
 
         plt.title(
@@ -140,26 +166,26 @@ class MarHeatMap:
         )
         plt.show()
 
-    def _add_missing_indicator_cols(self, X_df_encoded_m):
+    def _get_missing_indicator_df(self) -> pd.DataFrame:
         """
-        Add missing indicator columns to the dataframe.
-
-        Parameters:
-        ----------
-        X_df_encoded_m : pd.DataFrame
-            Encoded dataframe containing columns to add missing indicators for.
+        Create a DataFrame with missing indicator columns.
 
         Returns:
         -------
         pd.DataFrame
-            Dataframe with added missing indicator columns.
+            DataFrame with columns indicating the presence of missing values.
         """
-        X_df_encoded_m_ind = X_df_encoded_m.copy(deep=True)
-        for col in X_df_encoded_m.filter(regex="^(?!.*bin_idx)").columns:
-            X_df_encoded_m_ind[self._na_col_name + col] = (
-                X_df_encoded_m_ind[col].isna().astype(int)
+        X_missing_indicator_df = pd.DataFrame(
+            columns=[
+                self._na_col_name + str(col)
+                for col in self._missing_encoder.X_encoded_data.columns
+            ]
+        )
+        for col in self._missing_encoder.X_encoded_data.columns:
+            X_missing_indicator_df[self._na_col_name + str(col)] = (
+                self._missing_encoder.X_encoded_data[col].isna().astype(int)
             )
-        return X_df_encoded_m_ind
+        return X_missing_indicator_df
 
 
 class HeatmapPlotter(InteractivePlot, Plotter):
@@ -217,8 +243,11 @@ class HeatmapPlotter(InteractivePlot, Plotter):
 
 
 if __name__ == "__main__":
-    from stream_viz.data_encoders.cfpdss_data_encoder import MissingDataEncoder
-    from stream_viz.utils.constants import _MISSING_DATA_PATH
+    from stream_viz.data_encoders.cfpdss_data_encoder import (
+        MissingDataEncoder,
+        NormalDataEncoder,
+    )
+    from stream_viz.utils.constants import _MISSING_DATA_PATH, _NORMAL_DATA_PATH
 
     # Cfpdss data encoding with missing values
     missing = MissingDataEncoder()
@@ -228,15 +257,18 @@ if __name__ == "__main__":
     )
     missing.encode_data()
 
-    # ------------ Test Run : For Mar Heat Map -----------------
-    # dt_binner = DecisionTreeBinning()
-    # dt_binner.perform_binning(missing.X_encoded_data, missing.y_encoded_data)
-    #
-    # mar_hm = MarHeatMap()
-    # mar_hm.plot_graph(
-    #     dt_binner.binned_data_X, start_tpt=200, end_tpt=500, significance_level=0.05
-    # )
+    # Cfpdss data encoding withOUT missing values
+    normal = NormalDataEncoder()
+    normal.read_csv_data(
+        filepath_or_buffer=_NORMAL_DATA_PATH,
+    )
+    normal.encode_data()
+
+    # ------------ Test Run : For MarHeatMap -----------------
+
+    mar_hm = MarHeatMap(normal_encoder_obj=normal, missing_encoder_obj=missing)
+    mar_hm.plot(start_tpt=200, end_tpt=500, significance_level=0.05)
 
     # ------------ Test Run : For HeatmapPlotter -----------------
-    plotter = HeatmapPlotter(missing.X_encoded_data)
-    plotter.display()
+    # plotter = HeatmapPlotter(missing.X_encoded_data)
+    # plotter.display()

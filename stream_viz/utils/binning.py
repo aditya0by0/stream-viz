@@ -117,18 +117,17 @@ class DecisionTreeBinning(Binning):
 
 
 if __name__ == "__main__":
-    from stream_viz.data_encoders.cfpdss_data_encoder import MissingDataEncoder
-    from stream_viz.utils.constants import _MISSING_DATA_PATH
+    from stream_viz.data_encoders.cfpdss_data_encoder import NormalDataEncoder
+    from stream_viz.utils.constants import _NORMAL_DATA_PATH
 
     # Cfpdss data encoding with missing values
-    missing = MissingDataEncoder()
-    missing.read_csv_data(
-        filepath_or_buffer=_MISSING_DATA_PATH,
-        index_col=[0],
+    normal = NormalDataEncoder()
+    normal.read_csv_data(
+        filepath_or_buffer=_NORMAL_DATA_PATH,
     )
-    missing.encode_data()
+    normal.encode_data()
 
     dt_binner = DecisionTreeBinning()
-    dt_binner.perform_binning(missing.X_encoded_data, missing.y_encoded_data)
+    dt_binner.perform_binning(normal.X_encoded_data, normal.y_encoded_data)
     dt_binner.binned_data_X.head()
     print("Column Mapping: ", dt_binner.column_mapping)
