@@ -7,3 +7,4 @@
 # Simply exclude this file from counting now:
 
 notebooks/*.ipynb linguist-generated=true
+stream_viz/tutorial/*.ipynb linguist-generated=true

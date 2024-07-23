@@ -34,6 +34,7 @@ class MarHeatMap:
         self._bin_n_col_regex: str = kwargs.get("bin_n_col_regex", r"bin_idx*n*")
         self._na_col_regex: str = kwargs.get("na_col_regex", r"is_na_*\d*")
         self._na_col_name: str = kwargs.get("na_col_name", "is_na_")
+        # self._X_data =  X_data
 
     def compute_mar_matrix(self, X_df_encoded_m_ind: pd.DataFrame) -> pd.DataFrame:
         """
@@ -94,12 +95,13 @@ class MarHeatMap:
         X_data = X_df_encoded_m_ind.iloc[start_tpt:end_tpt]
         X_data = self._add_missing_indicator_cols(X_data)
         p_value_matrix = self.compute_mar_matrix(X_data)
+        self._X_data = X_data
 
         # Create a heatmap with highlighting
         plt.figure(figsize=(12, 8))
         heatmap = sns.heatmap(
             p_value_matrix,
-            annot=True,
+            # annot=True,
             cmap="coolwarm",
             cbar_kws={"label": "p-value"},
             linewidths=0.5,
@@ -133,7 +135,9 @@ class MarHeatMap:
                         fontsize=10,
                     )
 
-        plt.title(f"Chi-Square Test p-values")
+        plt.title(
+            f"Chi-Square Test p-values for data from {start_tpt} to {end_tpt} timepoint"
+        )
         plt.show()
 
     def _add_missing_indicator_cols(self, X_df_encoded_m):
