@@ -12,7 +12,7 @@ from ipywidgets import HBox, IntSlider, SelectMultiple, VBox, interactive_output
 from stream_viz.utils.drifts_types import AllDriftType, get_all_drift_types_keys
 
 # mpld3.enable_notebook() # Disabled as of now, due to issues with other plots
-mpld3.disable_notebook()
+# mpld3.disable_notebook()
 
 
 class Plotter(ABC):

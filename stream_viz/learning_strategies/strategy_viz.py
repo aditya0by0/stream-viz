@@ -12,7 +12,7 @@ from matplotlib import pyplot as plt
 from stream_viz.base import StrategyPlot
 
 # mpld3.enable_notebook() # Disabled as of now, due to issues with other plots
-mpld3.disable_notebook()
+# mpld3.disable_notebook()
 
 
 class LearningStrategyChart(StrategyPlot):

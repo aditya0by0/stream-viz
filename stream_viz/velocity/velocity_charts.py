@@ -11,9 +11,7 @@ from stream_viz.data_encoders.cfpdss_data_encoder import CfpdssDataEncoder
 
 class StackedBarChart(Velocity):
     @staticmethod
-    def plot_velocity(
-        df, feature, chunk_size, start_period, end_period, x_label_every=5
-    ):
+    def plot(df, feature, chunk_size, start_period, end_period, x_label_every=5):
         # Helper function to remove whitespace from feature name
         feature = feature.strip()
 
@@ -80,7 +78,8 @@ class StackedBarChart(Velocity):
         # Set labels for only every 5th chunk
         tick_locs = np.arange(start_period, end_period)
         tick_labels = [
-            label if (i % 10 == 0) else "" for i, label in enumerate(chunk_labels)
+            label if (i % x_label_every == 0) else ""
+            for i, label in enumerate(chunk_labels)
         ]
 
         ax.set_xlabel("Time period")
@@ -100,7 +99,7 @@ class StackedBarChart(Velocity):
 
 class RollingMeansStds(Velocity):
     @staticmethod
-    def plot_velocity(df, features, window_size=10, start_tp=200, end_tp=500):
+    def plot(df, features, window_size=10, start_tp=200, end_tp=500):
         # Select the specified numerical features and the first 2000 rows
         X_df_encoded_m_num = df[features].iloc[start_tp:end_tp]
         overall_mean = X_df_encoded_m_num.mean()
@@ -186,7 +185,7 @@ class FeatureVelocity(Velocity):
     def __init__(self, data_obj: CfpdssDataEncoder):
         self._data_obj: CfpdssDataEncoder = data_obj
 
-    def plot_velocity(self, features, *args, **kwargs) -> None:
+    def plot(self, features, *args, **kwargs) -> None:
 
         # If string is provided, plot stacked bar chart for categorical feature
         if isinstance(features, str):
@@ -195,9 +194,7 @@ class FeatureVelocity(Velocity):
                     features
                 ]
                 kwargs["feature"] = encoded_feature_name
-                StackedBarChart.plot_velocity(
-                    df=self._data_obj.X_encoded_data, *args, **kwargs
-                )
+                StackedBarChart.plot(df=self._data_obj.X_encoded_data, *args, **kwargs)
                 return
             raise ValueError(f"Feature {features} doesn't not exists in given Data ")
 
@@ -219,9 +216,7 @@ class FeatureVelocity(Velocity):
                     self._data_obj.numerical_column_mapping[feature]
                 )
                 kwargs["features"] = encoded_features_list
-            RollingMeansStds.plot_velocity(
-                df=self._data_obj.X_encoded_data, *args, **kwargs
-            )
+            RollingMeansStds.plot(df=self._data_obj.X_encoded_data, *args, **kwargs)
             return
 
         raise ValueError(
@@ -246,12 +241,10 @@ if __name__ == "__main__":
     missing.encode_data()
 
     feature_vel = FeatureVelocity(missing)
-    feature_vel.plot_velocity(
+    feature_vel.plot(
         features="c5", chunk_size=100, start_period=10, end_period=35, x_label_every=5
     )
-    feature_vel.plot_velocity(
-        features=["n0", "n1"], window_size=10, start_tp=200, end_tp=500
-    )
+    feature_vel.plot(features=["n0", "n1"], window_size=10, start_tp=200, end_tp=500)
 
     # stacked_obj = StackedBarChart()
     # cat_feature = "c5_b"

@@ -13,10 +13,10 @@ from matplotlib import pyplot as plt
 from stream_viz.base import DriftDetector
 from stream_viz.utils.drifts_types import RealConceptDriftType, get_rcd_drift_type_keys
 
-# mpld3.enable_notebook() # Disabled as of now, due to issues with other plots
-mpld3.disable_notebook()
-
 from .rcd_configs import drift_detectors, metrics_dict, models_dict
+
+# mpld3.enable_notebook() # Disabled as of now, due to issues with other plots
+# mpld3.disable_notebook()
 
 
 class RealConceptDriftDetector(DriftDetector):
