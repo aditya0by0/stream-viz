@@ -2,12 +2,19 @@ from collections import deque
 from typing import Deque, Dict, List, Tuple
 
 import mplcursors
+
+# This library enables interactive plots in the notebook.
+# Enables functionality to hover over data points to see values, zoom in/out, and pan the plot.
+import mpld3
 import numpy as np
 import seaborn as sns
 from matplotlib import pyplot as plt
 
 from stream_viz.base import DriftDetector
 from stream_viz.utils.drifts_types import RealConceptDriftType, get_rcd_drift_type_keys
+
+# mpld3.enable_notebook() # Disabled as of now, due to issues with other plots
+mpld3.disable_notebook()
 
 from .rcd_configs import drift_detectors, metrics_dict, models_dict
 
@@ -187,12 +194,24 @@ class RealConceptDriftDetector(DriftDetector):
         sns.set_style("darkgrid")
         plt.clf()
 
+        metric_score_list = self.metric_score_list[start_tpt:end_tpt]
+        warning_level_timepoints = [
+            tpt
+            for tpt in self.warning_level_timepoints
+            if tpt >= start_tpt and tpt <= end_tpt
+        ]
+        concept_drifts_timepoints = [
+            tpt
+            for tpt in self.concept_drifts_timepoints
+            if tpt >= start_tpt and tpt <= end_tpt
+        ]
+
         # Get the y-axis limit to calculate the height of vertical lines
-        y_max = max(self.metric_score_list)
+        y_max = max(metric_score_list)
         vertical_line_height = (vertical_line_height_percentage / 100) * y_max
 
         # Plot warning levels with vertical lines
-        for i, warning_lvl_timepoint in enumerate(self.warning_level_timepoints):
+        for i, warning_lvl_timepoint in enumerate(warning_level_timepoints):
             if i == 0:  # Add label only for the first warning level
                 plt.vlines(
                     warning_lvl_timepoint,
@@ -215,7 +234,7 @@ class RealConceptDriftDetector(DriftDetector):
                 )
 
         # Plot concept drift with vertical lines
-        for i, concept_drifts_timepoint in enumerate(self.concept_drifts_timepoints):
+        for i, concept_drifts_timepoint in enumerate(concept_drifts_timepoints):
             if i == 0:  # Add label only for the first concept drift
                 plt.vlines(
                     concept_drifts_timepoint,
@@ -240,16 +259,16 @@ class RealConceptDriftDetector(DriftDetector):
 
         # Plot metric score
         plt.plot(
-            list(range(len(self.metric_score_list))),
-            self.metric_score_list,
+            list(range(start_tpt, end_tpt)),
+            metric_score_list,
             "-b",
         )
 
         plt.legend(loc="best", facecolor="white", framealpha=1)
-        plt.title(name + " on cfpdss dataset", fontsize=15)
+        plt.title("Real Concept Drift" + " on cfpdss dataset", fontsize=15)
         plt.xlabel("Timepoint")
         plt.ylabel("Metric Score")
-        plt.xticks(np.arange(0, len(self.metric_score_list), 1000))
+        plt.xticks()
 
         mplcursors.cursor(hover=True)
 

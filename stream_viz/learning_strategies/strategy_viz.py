@@ -1,10 +1,18 @@
 from typing import List, Tuple
 
+import mplcursors
+
+# This library enables interactive plots in the notebook.
+# Enables functionality to hover over data points to see values, zoom in/out, and pan the plot.
+import mpld3
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
 from stream_viz.base import StrategyPlot
+
+# mpld3.enable_notebook() # Disabled as of now, due to issues with other plots
+mpld3.disable_notebook()
 
 
 class LearningStrategyChart(StrategyPlot):
@@ -81,6 +89,7 @@ class LearningStrategyChart(StrategyPlot):
         # Adjust layout to make space for the legends
         plt.tight_layout(rect=(0.0, 0.0, 0.85, 1.0))
         plt.grid(True)
+        mplcursors.cursor(hover=True)
         plt.show()
 
     def plot_winner_at_each_tpt(
@@ -132,7 +141,7 @@ class LearningStrategyChart(StrategyPlot):
             )
 
         plt.xlabel("Batch")
-        plt.ylabel("Kappa / Normalized difference within window")
+        plt.ylabel("Kappa Score")
         plt.title("Kappa Values with Color Indicating Strategy with Highest Score")
 
         legend_handles = [
