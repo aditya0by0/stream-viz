@@ -1,5 +1,5 @@
 import itertools
-from typing import Iterable
+from typing import Iterable, List, Union
 
 import numpy as np
 import pandas as pd
@@ -11,8 +11,36 @@ from stream_viz.data_encoders.cfpdss_data_encoder import CfpdssDataEncoder
 
 class StackedBarChart(Velocity):
     @staticmethod
-    def plot(df, feature, chunk_size, start_period, end_period, x_label_every=5):
-        # Helper function to remove whitespace from feature name
+    def plot(
+        df: pd.DataFrame,
+        feature: str,
+        chunk_size: int,
+        start_period: int,
+        end_period: int,
+        x_label_every: int = 5,
+    ) -> None:
+        """
+        Plots a stacked bar chart for a given categorical feature over specified time periods.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            The dataframe containing the data to plot.
+        feature : str
+            The name of the categorical feature to plot.
+        chunk_size : int
+            The number of data points in each chunk.
+        start_period : int
+            The starting period for the plot.
+        end_period : int
+            The ending period for the plot.
+        x_label_every : int, optional
+            Interval for displaying x-axis labels, by default 5.
+
+        Returns
+        -------
+        None
+        """
         feature = feature.strip()
 
         # Calculate the number of chunks
@@ -99,8 +127,33 @@ class StackedBarChart(Velocity):
 
 class RollingMeansStds(Velocity):
     @staticmethod
-    def plot(df, features, window_size=10, start_tp=200, end_tp=500):
-        # Select the specified numerical features and the first 2000 rows
+    def plot(
+        df: pd.DataFrame,
+        features: List[str],
+        window_size: int = 10,
+        start_tp: int = 200,
+        end_tp: int = 500,
+    ) -> None:
+        """
+        Plots rolling means and standard deviations for given numerical features.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            The dataframe containing the data to plot.
+        features : List[str]
+            List of numerical feature names to plot.
+        window_size : int, optional
+            The size of the moving window, by default 10.
+        start_tp : int, optional
+            The starting time point for the plot, by default 200.
+        end_tp : int, optional
+            The ending time point for the plot, by default 500.
+
+        Returns
+        -------
+        None
+        """
         X_df_encoded_m_num = df[features].iloc[start_tp:end_tp]
         overall_mean = X_df_encoded_m_num.mean()
 
@@ -182,12 +235,29 @@ class RollingMeansStds(Velocity):
 
 
 class FeatureVelocity(Velocity):
-    def __init__(self, data_obj: CfpdssDataEncoder):
+    def __init__(self, data_obj: CfpdssDataEncoder) -> None:
+        """
+        Initializes the FeatureVelocity object with the provided data encoder.
+
+        Parameters
+        ----------
+        data_obj : CfpdssDataEncoder
+            The data encoder object containing encoded data and metadata.
+        """
         self._data_obj: CfpdssDataEncoder = data_obj
 
-    def plot(self, features, *args, **kwargs) -> None:
+    def plot(self, features: Union[str, Iterable[str]], *args, **kwargs) -> None:
+        """
+        Plots the velocity of features, either as a stacked bar chart for categorical
+        features or rolling means and standard deviations for numerical features.
 
-        # If string is provided, plot stacked bar chart for categorical feature
+        Parameters
+        ----------
+        features : Union[str, Iterable[str]]
+            The feature name(s) to plot. If a string is provided, it is treated as a
+            categorical feature. If an iterable of strings is provided, it is treated
+            as numerical features.
+        """
         if isinstance(features, str):
             if features in self._data_obj.original_categorical_cols:
                 encoded_feature_name = self._data_obj.categorical_column_mapping[
@@ -196,7 +266,7 @@ class FeatureVelocity(Velocity):
                 kwargs["feature"] = encoded_feature_name
                 StackedBarChart.plot(df=self._data_obj.X_encoded_data, *args, **kwargs)
                 return
-            raise ValueError(f"Feature {features} doesn't not exists in given Data ")
+            raise ValueError(f"Feature {features} doesn't exist in the given data.")
 
         # If list/iterable of features is provided, plot rolling means for numerical features
         if isinstance(features, Iterable):
@@ -206,8 +276,8 @@ class FeatureVelocity(Velocity):
                     if feature in self._data_obj.original_categorical_cols:
                         # Feature is not numerical but categorical
                         raise ValueError(
-                            f"Features Iterable must contain all numerical features"
-                            f"Feature {feature} is categorical"
+                            f"Features iterable must contain all numerical features. "
+                            f"Feature {feature} is categorical."
                         )
                     # Feature not exists in our dataset
                     raise ValueError(f"Feature {feature} doesn't exists in Data")
@@ -215,13 +285,13 @@ class FeatureVelocity(Velocity):
                 encoded_features_list.append(
                     self._data_obj.numerical_column_mapping[feature]
                 )
-                kwargs["features"] = encoded_features_list
+            kwargs["features"] = encoded_features_list
             RollingMeansStds.plot(df=self._data_obj.X_encoded_data, *args, **kwargs)
             return
 
         raise ValueError(
-            "Features parameter should be either an Iterable for numerical features"
-            "and String for categorical features"
+            "Features parameter should be either a string for a categorical feature or "
+            "an iterable for numerical features."
         )
 
 
@@ -234,10 +304,7 @@ if __name__ == "__main__":
 
     # Cfpdss data encoding with missing values
     missing = MissingDataEncoder()
-    missing.read_csv_data(
-        filepath_or_buffer=_MISSING_DATA_PATH,
-        index_col=[0],
-    )
+    missing.read_csv_data(filepath_or_buffer=_MISSING_DATA_PATH, index_col=[0])
     missing.encode_data()
 
     feature_vel = FeatureVelocity(missing)
