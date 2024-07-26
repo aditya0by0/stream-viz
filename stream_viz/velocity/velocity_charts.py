@@ -1,5 +1,5 @@
 import itertools
-from typing import Iterable, List, Union
+from typing import Dict, Iterable, List, Union
 
 import matplotlib.ticker as mticker
 import numpy as np
@@ -297,10 +297,18 @@ class FeatureVelocity(Velocity):
 
 
 class StreamGraph(Velocity):
+    """
+    Class for plotting stream graphs to visualize the velocity of categorical feature changes over time.
+
+    Parameters
+    ----------
+    data_obj : CfpdssDataEncoder
+        The data encoder object containing encoded data and metadata.
+    """
 
     def __init__(self, data_obj: CfpdssDataEncoder) -> None:
         """
-        Initializes the FeatureVelocity object with the provided data encoder.
+        Initializes the StreamGraph object with the provided data encoder.
 
         Parameters
         ----------
@@ -309,11 +317,41 @@ class StreamGraph(Velocity):
         """
         self._data_obj: CfpdssDataEncoder = data_obj
 
-    def get_timepoint(self, window_size):
+    def get_timepoint(self, window_size: int) -> List[int]:
+        """
+        Generate a list of time points based on the specified window size.
+
+        Parameters
+        ----------
+        window_size : int
+            The size of the window to use for chunking the data.
+
+        Returns
+        -------
+        List[int]
+            A list of time points.
+        """
         time_points = list(range(0, 13000, window_size))
         return time_points
 
-    def count_categories_in_chunks(self, column, chunk_size=50):
+    def count_categories_in_chunks(
+        self, column: pd.Series, chunk_size: int = 50
+    ) -> Dict[str, List[int]]:
+        """
+        Count occurrences of each category in chunks of the specified size.
+
+        Parameters
+        ----------
+        column : pd.Series
+            The column containing categorical data.
+        chunk_size : int, optional
+            The size of each chunk to process (default is 50).
+
+        Returns
+        -------
+        Dict[str, List[int]]
+            A dictionary where keys are category names and values are lists of counts per chunk.
+        """
         # Initialize an empty dictionary to hold the counts for each category
         category_counts = {}
 
@@ -348,7 +386,15 @@ class StreamGraph(Velocity):
 
         return category_counts
 
-    def plot(self, feature):
+    def plot(self, feature: str) -> None:
+        """
+        Plot the stream graph for a specified feature to visualize changes over time.
+
+        Parameters
+        ----------
+        feature : str
+            The name of the feature to plot.
+        """
         window_size = 50
         time_points = self.get_timepoint(window_size)
         result = self.count_categories_in_chunks(self._data_obj.X_encoded_data[feature])
