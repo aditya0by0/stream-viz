@@ -1,10 +1,11 @@
 import itertools
 from typing import Iterable, List, Union
 
+import matplotlib.ticker as mticker
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
-import matplotlib.ticker as mticker
+
 from stream_viz.base import Velocity
 from stream_viz.data_encoders.cfpdss_data_encoder import CfpdssDataEncoder
 
@@ -293,6 +294,8 @@ class FeatureVelocity(Velocity):
             "Features parameter should be either a string for a categorical feature or "
             "an iterable for numerical features."
         )
+
+
 class StreamGraph(Velocity):
 
     def __init__(self, data_obj: CfpdssDataEncoder) -> None:
@@ -306,16 +309,18 @@ class StreamGraph(Velocity):
         """
         self._data_obj: CfpdssDataEncoder = data_obj
 
-    def get_timepoint(self,window_size):
+    def get_timepoint(self, window_size):
         time_points = list(range(0, 13000, window_size))
         return time_points
 
-    def count_categories_in_chunks(self,column, chunk_size=50):
+    def count_categories_in_chunks(self, column, chunk_size=50):
         # Initialize an empty dictionary to hold the counts for each category
         category_counts = {}
 
         # Calculate the number of chunks
-        num_chunks = len(column) // chunk_size + (1 if len(column) % chunk_size != 0 else 0)
+        num_chunks = len(column) // chunk_size + (
+            1 if len(column) % chunk_size != 0 else 0
+        )
 
         for i in range(num_chunks):
             # Get the start and end indices for the current chunk
@@ -337,7 +342,9 @@ class StreamGraph(Velocity):
             # Ensure all categories have a list of the correct length
             for category in category_counts:
                 if len(category_counts[category]) < num_chunks:
-                    category_counts[category].extend([0] * (num_chunks - len(category_counts[category])))
+                    category_counts[category].extend(
+                        [0] * (num_chunks - len(category_counts[category]))
+                    )
 
         return category_counts
 
@@ -347,12 +354,17 @@ class StreamGraph(Velocity):
         result = self.count_categories_in_chunks(self._data_obj.X_encoded_data[feature])
         fig, ax = plt.subplots()
         fig.set_size_inches(10, 6)
-        ax.stackplot(time_points, result.values(),
-                     labels=result.keys(), alpha=0.8, baseline='wiggle')
-        ax.legend(loc='upper right', reverse=True)
-        ax.set_title(f'Velocity of {feature}')
-        ax.set_xlabel('Time')
-        ax.set_ylabel('Height')
+        ax.stackplot(
+            time_points,
+            result.values(),
+            labels=result.keys(),
+            alpha=0.8,
+            baseline="wiggle",
+        )
+        ax.legend(loc="upper right", reverse=True)
+        ax.set_title(f"Velocity of {feature}")
+        ax.set_xlabel("Time")
+        ax.set_ylabel("Height")
         ax.xaxis.set_major_locator(mticker.MultipleLocator(1000))
         plt.show()
 
@@ -386,4 +398,4 @@ if __name__ == "__main__":
     # numerical_features = ["n0", "n1"]
     # roll_mean_obj.plot_velocity(missing.X_encoded_data, numerical_features, window_size=10)
     stream_graph = StreamGraph(normal)
-    stream_graph.plot('c5_b')
+    stream_graph.plot("c5_b")
