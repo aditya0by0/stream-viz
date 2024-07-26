@@ -11,16 +11,29 @@ from stream_viz.utils.drifts_types import FeatureDriftType, get_fd_drift_type_ke
 
 
 class FeatureDriftDetector(DriftDetector):
-    def __init__(self, features_list: List[str], window_size=100, ks_test_pval=0.001):
+    def __init__(
+        self,
+        features_list: List[str],
+        window_size=300,
+        ks_test_pval=0.001,
+        gap_size=100,
+        p_val_threshold=0.0001,
+    ):
         self._drift_records: List[Dict[str, str]] = []
         self._valid_keys: set[str] = get_fd_drift_type_keys()
         self.window_size: int = window_size
-        self._window: Deque[Dict[str, float]] = deque(maxlen=window_size)
+        self.gap_size: int = gap_size
+        self._window: Deque[Dict[str, float]] = deque(maxlen=2 * window_size + gap_size)
         self._drift_timepoints: List[int] = []
         self._moving_avg: pd.DataFrame = pd.DataFrame(columns=features_list)
-        self._ks_test_pval: float = ks_test_pval
+        self.pval: float = ks_test_pval
+        self.p_val_threshold = p_val_threshold
         self._drift_tp_df: pd.DataFrame = pd.DataFrame(columns=features_list)
         self._feature_data_df: pd.DataFrame = pd.DataFrame(columns=features_list)
+        self._window_x: Deque[Dict[str, float]] = deque(
+            self._feature_data_df.head(self.window_size * 2 + self.gap_size),
+            maxlen=self.window_size * 2 + self.gap_size,
+        )
 
     def update(self, x_i: Dict[str, float], y_i: int, tpt: int):
         self._window.append(x_i)
@@ -29,11 +42,21 @@ class FeatureDriftDetector(DriftDetector):
         if len(self._window) == self.window_size:
             self.detect_drift(tpt)
 
+            for feature in self._feature_data_df.columns:
+                drift_points, drift_types = self._gradual_drift_detection(
+                    self._feature_data_df[feature],
+                    self.window_size,
+                    self.gap_size,  # gap_size, you can adjust this
+                    self.pval,
+                )
+                for point, drift_type in zip(drift_points, drift_types):
+                    self._drift_tp_df.loc[point, feature] = drift_type
+
     def detect_drift(self, tpt: int):
         window_df = pd.DataFrame(self._window)
         for feature in window_df.columns:
             drift_detected, drift_type = self._detect_drift_using_ks(
-                window_df[feature].values, self.window_size, self._ks_test_pval
+                self, window_df[feature].values, self.window_size, self.pval
             )
             if drift_detected:
                 self._drift_tp_df.loc[tpt, feature] = drift_type
@@ -42,22 +65,56 @@ class FeatureDriftDetector(DriftDetector):
 
     @staticmethod
     def _detect_drift_using_ks(
-        window_data: np.ndarray, win_size: int, p_val: float
+        self, window_data: np.ndarray, win_size: int, pval: float
     ) -> Tuple[bool, Optional[str]]:
         first_half = window_data[: win_size // 2]
         second_half = window_data[win_size // 2 :]
 
         ks_stat, p_value = ks_2samp(first_half, second_half)
-        if p_value < p_val:
+        if p_value < pval:
             mean_diff = np.mean(second_half) - np.mean(first_half)
             if np.abs(mean_diff) > np.std(window_data):
                 return True, "sudden_drift"
             elif mean_diff > 0:
                 return True, "linear_drift"
-            else:
-                return True, "gradual_drift"
+            # else:
+            #    return True, "gradual_drift"
 
         return False, None
+
+    def _get_population(self, window, window_size, gap_size):
+        # P1 = list(self._window)[: self.window_size]
+        P1 = list(self._window)[:100]
+        # P2 = list(self._window)[self.window_size + self.gap_size: ((2 * self.window_size) + self.gap_size)]
+        P2 = list(self._window)[100 + self.gap_size :]
+        return P1, P2
+
+    def _gradual_drift_detection(
+        self, feature_data_df, window_size, gap_size, p_val_threshold
+    ):
+
+        # drift_points = []
+        drift_types = []
+        P1, P2 = self._get_population(self._window, self.window_size, self.gap_size)
+        pvalue = ks_2samp(P1, P2)[1]
+
+        if pvalue < p_val_threshold:
+            self._drift_timepoints.append(self.window_size + self.gap_size)
+            drift_types.append("gradual_drift")
+
+        for idx, xi in enumerate(
+            self._feature_data_df[window_size * 2 + gap_size :],
+            start=window_size * 2 + gap_size,
+        ):
+            self._window_x.append(xi)
+            P1, P2 = self._get_population(
+                self._window_x, self.window_size, self.gap_size
+            )
+            pvalue = ks_2samp(P1, P2)[1]
+            if pvalue < p_val_threshold:
+                self._drift_timepoints.append(idx)
+                drift_types.append("gradual_drift")
+        return self._drift_timepoints, drift_types
 
     def plot(self, feature_name, window_size=None):
         if window_size is None:
@@ -74,7 +131,11 @@ class FeatureDriftDetector(DriftDetector):
             linestyle="-",
             label=f"{feature_name} Moving Mean",
         )
-
+        grad_drift_points, grad_drift_types = self._gradual_drift_detection(
+            window_size, 100
+        )
+        self.drift_points.extend(grad_drift_points)
+        self.drift_types.extend(grad_drift_types)
         # drift_points, drift_types, moving_avg = self.detect_feature_drift(
         #     feature_data, window_size, 3
         # )
@@ -85,8 +146,8 @@ class FeatureDriftDetector(DriftDetector):
         for idx, drift_type in self._drift_tp_df[feature_name].dropna().items():
             color = (
                 "red"
-                if drift_type == "Sudden Drift"
-                else "orange" if drift_type == "Linear Drift" else "blue"
+                if drift_type == "sudden_drift"
+                else "orange" if drift_type == "linear_drift" else "blue"
             )
             plt.axvline(
                 x=idx,
@@ -124,7 +185,7 @@ if __name__ == "__main__":
         NormalDataEncoder,
     )
     from stream_viz.data_streamer import DataStreamer
-    from stream_viz.utils.constants import _MISSING_DATA_PATH, _NORMAL_DATA_PATH
+    from stream_viz.utils.constants import _NORMAL_DATA_PATH
 
     # Cfpdss data encoding with missing values
     # missing = MissingDataEncoder()
@@ -138,7 +199,7 @@ if __name__ == "__main__":
 
     # As the KS test is only for numerical features
     X_numerical = normal.X_encoded_data[normal.original_numerical_cols]
-
+    # X_categorical = normal.X_encoded_data[normal.original_categorical_cols]
     dt_streamer = DataStreamer(
         fd_detector_obj=FeatureDriftDetector(X_numerical.columns)
     )
