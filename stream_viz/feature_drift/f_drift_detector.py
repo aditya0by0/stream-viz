@@ -11,14 +11,31 @@ from stream_viz.utils.drifts_types import FeatureDriftType, get_fd_drift_type_ke
 
 
 class FeatureDriftDetector(DriftDetector):
+    """
+    Class for detecting feature drift in streaming data using Kolmogorov-Smirnov test for numerical features.
+
+    Parameters
+    ----------
+    features_list : List[str]
+        List of feature names to monitor for drift.
+    window_size : int, optional
+        Size of the window to use for drift detection (default is 300).
+    ks_test_pval : float, optional
+        P-value threshold for the Kolmogorov-Smirnov test (default is 0.001).
+    gap_size : int, optional
+        Size of the gap between segments when computing gradual drift (default is 50).
+    p_val_threshold : float, optional
+        P-value threshold for gradual drift detection (default is 0.0001).
+    """
+
     def __init__(
         self,
         features_list: List[str],
-        window_size=300,
-        ks_test_pval=0.001,
-        gap_size=50,
-        p_val_threshold=0.0001,
-    ):
+        window_size: int = 300,
+        ks_test_pval: float = 0.001,
+        gap_size: int = 50,
+        p_val_threshold: float = 0.0001,
+    ) -> None:
         self._drift_records: List[Dict[str, str]] = []
         self._valid_keys: set[str] = get_fd_drift_type_keys()
         self.window_size: int = window_size
@@ -27,18 +44,38 @@ class FeatureDriftDetector(DriftDetector):
         self._drift_timepoints: List[int] = []
         self._moving_avg: pd.DataFrame = pd.DataFrame(columns=features_list)
         self.p_val: float = ks_test_pval
-        self.p_val_grad = p_val_threshold
+        self.p_val_grad: float = p_val_threshold
         self._drift_tp_df: pd.DataFrame = pd.DataFrame(columns=features_list)
         self._feature_data_df: pd.DataFrame = pd.DataFrame(columns=features_list)
 
-    def update(self, x_i: Dict[str, float], y_i: int, tpt: int):
+    def update(self, x_i: Dict[str, float], y_i: int, tpt: int) -> None:
+        """
+        Update the feature drift detector with new data point and detect drift if window is full.
+
+        Parameters
+        ----------
+        x_i : Dict[str, float]
+            Dictionary of feature values at the current time point.
+        y_i : int
+            Target value at the current time point.
+        tpt : int
+            Current time point.
+        """
         self._window.append(x_i)
         self._feature_data_df.loc[tpt] = x_i
 
         if len(self._window) == self.window_size:
             self.detect_drift(tpt)
 
-    def detect_drift(self, tpt: int):
+    def detect_drift(self, tpt: int) -> None:
+        """
+        Detect drift in the current window of data.
+
+        Parameters
+        ----------
+        tpt : int
+            Current time point.
+        """
         window_df = pd.DataFrame(self._window)
         for feature in window_df.columns:
             drift_detected, drift_type = self._detect_drift_using_ks(
@@ -52,6 +89,19 @@ class FeatureDriftDetector(DriftDetector):
     def _detect_drift_using_ks(
         self, window_data: np.ndarray
     ) -> Tuple[bool, Optional[str]]:
+        """
+        Detect drift using the Kolmogorov-Smirnov test.
+
+        Parameters
+        ----------
+        window_data : np.ndarray
+            Array of feature values in the current window.
+
+        Returns
+        -------
+        Tuple[bool, Optional[str]]
+            A tuple indicating whether drift was detected and the type of drift.
+        """
         first_half = window_data[: self.window_size // 2]
         second_half = window_data[self.window_size // 2 :]
 
@@ -75,21 +125,19 @@ class FeatureDriftDetector(DriftDetector):
 
         return False, None
 
-    def plot(self, feature_name, window_size=None):
+    def plot(self, feature_name: str, window_size: Optional[int] = None) -> None:
+        """
+        Plot the feature values over time, highlighting detected drift points.
+
+        Parameters
+        ----------
+        feature_name : str
+            The name of the feature to plot.
+        window_size : Optional[int], optional
+            Size of the window for calculating moving average (default is None, uses instance's window_size).
+        """
         if window_size is None:
             window_size = self.window_size
-        feature_data = self._feature_data_df[feature_name]
-        plt.figure(figsize=(10, 6))
-        plt.scatter(feature_data.index, feature_data, marker="o", s=2)
-
-        moving_mean = feature_data.rolling(window=window_size).mean()
-        plt.plot(
-            feature_data.index,
-            moving_mean,
-            color="black",
-            linestyle="-",
-            label=f"{feature_name} Moving Mean",
-        )
 
         drift_type_temp_label = []
         for idx, drift_type in self._drift_tp_df[feature_name].dropna().items():
@@ -109,8 +157,22 @@ class FeatureDriftDetector(DriftDetector):
                 label=(
                     f"{drift_type}" if drift_type not in drift_type_temp_label else ""
                 ),
+                alpha=0.5,
             )
             drift_type_temp_label.append(drift_type)
+
+        feature_data = self._feature_data_df[feature_name]
+        plt.figure(figsize=(10, 6))
+        plt.scatter(feature_data.index, feature_data, marker="o", s=2)
+
+        moving_mean = feature_data.rolling(window=window_size).mean()
+        plt.plot(
+            feature_data.index,
+            moving_mean,
+            color="black",
+            linestyle="-",
+            label=f"{feature_name} Moving Mean",
+        )
 
         plt.title(f"{feature_name} vs. Time")
         plt.xlabel("Time")
@@ -122,10 +184,31 @@ class FeatureDriftDetector(DriftDetector):
 
     @property
     def drift_records(self) -> List[FeatureDriftType]:
+        """
+        Property to get drift records.
+
+        Returns
+        -------
+        List[FeatureDriftType]
+            List of detected drift records.
+        """
         return self._drift_records
 
     @drift_records.setter
-    def drift_records(self, drift_record: FeatureDriftType):
+    def drift_records(self, drift_record: FeatureDriftType) -> None:
+        """
+        Property setter to add a drift record if valid.
+
+        Parameters
+        ----------
+        drift_record : FeatureDriftType
+            A dictionary representing a drift record.
+
+        Raises
+        ------
+        ValueError
+            If the drift record is invalid.
+        """
         if isinstance(drift_record, dict) and self._validate_drift(drift_record):
             self._drift_records.append(drift_record)
         else:
