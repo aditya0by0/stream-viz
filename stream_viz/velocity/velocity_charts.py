@@ -317,7 +317,8 @@ class StreamGraph(Velocity):
         """
         self._data_obj: CfpdssDataEncoder = data_obj
 
-    def get_timepoint(self, window_size: int) -> List[int]:
+    @staticmethod
+    def get_timepoint(window_size: int) -> List[int]:
         """
         Generate a list of time points based on the specified window size.
 
@@ -334,8 +335,9 @@ class StreamGraph(Velocity):
         time_points = list(range(0, 13000, window_size))
         return time_points
 
+    @staticmethod
     def count_categories_in_chunks(
-        self, column: pd.Series, chunk_size: int = 50
+        column: pd.Series, chunk_size: int = 50
     ) -> Dict[str, List[int]]:
         """
         Count occurrences of each category in chunks of the specified size.
