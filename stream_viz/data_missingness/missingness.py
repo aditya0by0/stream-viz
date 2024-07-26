@@ -241,6 +241,90 @@ class HeatmapPlotter(InteractivePlot, Plotter):
     def _add_interactive_plot(self):
         super()._add_interactive_plot()
 
+class StackedBarGraph (Plotter):
+
+    def __init__(
+            self,
+            missing_encoder_obj: MissingDataEncoder,
+    ):
+        self._missing_encoder = missing_encoder_obj
+        self._data_df = self._missing_encoder.X_encoded_data
+    def plot(self,feature,chunk_size):
+        df = self._data_df
+        num_chunks = len(df) // chunk_size
+        chunk_ranges = [(i * chunk_size, (i + 1) * chunk_size) for i in range(num_chunks)]
+
+        counts = []
+        for start, end in chunk_ranges:
+            chunk = df[start:end]
+            count_0 = chunk[feature].value_counts().get(0, 0)
+            count_1 = chunk[feature].value_counts().get(1, 0)
+            count_nan = chunk[feature].isna().sum()
+            counts.append([count_0, count_1, count_nan])
+
+        counts_df = pd.DataFrame(counts, columns=['A', 'B', 'Missing'], index=range(num_chunks))
+
+        counts_df.plot(kind='bar', stacked=True, figsize=(12, 8))
+        plt.xlabel('Time period')
+        plt.ylabel('Count')
+        plt.title(f'Stacked Bar Graph of {feature} for each time period of {chunk_size} Instances')
+        plt.legend(title=feature, loc='upper right')
+        plt.show()
+
+
+class ScatterPlotter(Plotter):
+    def __init__(
+            self,
+            normal_encoder_obj: NormalDataEncoder,
+            missing_encoder_obj: MissingDataEncoder,
+    ):
+        self._normal_encoder = normal_encoder_obj
+        self._missing_encoder = missing_encoder_obj
+
+    def plot(self):
+        """Dummy implementation of the abstract method 'plot'."""
+        pass
+    def plot_numerical(self, feature):
+        normal_df = self._normal_encoder.X_encoded_data
+        missing_df = self._missing_encoder.X_encoded_data
+
+        attr = normal_df[feature]
+        missing_attr = missing_df[feature]
+        missing_mask = np.isnan(missing_attr)
+        plt.figure(figsize=(10, 6))
+        plt.scatter(np.arange(len(attr)), attr, color='blue', label='Not missing', alpha=0.5, s=20)
+        plt.scatter(np.where(missing_mask)[0], attr[missing_mask], color='red', label='Missing', alpha=0.5, s=20)
+        plt.xlabel('Time Points')
+        plt.ylabel(feature)
+        plt.xticks(np.arange(0, 14000, 1000))
+        plt.legend()
+        plt.show()
+
+    def plot_categorical(self, feature):
+        normal_df = self._normal_encoder.X_encoded_data.copy()
+        missing_df = self._missing_encoder.X_encoded_data
+
+        # Adjust values for missing data
+        for ind in range(len(normal_df)):
+            if pd.isna(missing_df.iloc[ind][feature]):
+                normal_df.loc[ind, feature] -= 0.5
+
+        # Select the first 100 elements of the columns
+        selected_normal_df = normal_df[feature].iloc[:100]
+        selected_missing_df = missing_df[feature].iloc[:100]
+
+        missing_mask = np.isnan(selected_missing_df)
+        plt.figure(figsize=(10, 6))
+        plt.scatter(np.arange(len(selected_normal_df)), selected_normal_df, color='blue', label='Not missing',
+                    alpha=0.5, s=20)
+        plt.scatter(np.where(missing_mask)[0], selected_normal_df[missing_mask], color='red', label='Missing',
+                    alpha=0.5, s=20)
+        plt.xlabel('Time Points')
+        plt.ylabel(feature)
+        plt.xticks(np.arange(0, 110, 10))
+        plt.legend()
+        plt.show()
+
 
 if __name__ == "__main__":
     from stream_viz.data_encoders.cfpdss_data_encoder import (
@@ -266,9 +350,14 @@ if __name__ == "__main__":
 
     # ------------ Test Run : For MarHeatMap -----------------
 
-    mar_hm = MarHeatMap(normal_encoder_obj=normal, missing_encoder_obj=missing)
-    mar_hm.plot(start_tpt=200, end_tpt=500, significance_level=0.05)
+    # mar_hm = MarHeatMap(normal_encoder_obj=normal, missing_encoder_obj=missing)
+    # mar_hm.plot(start_tpt=200, end_tpt=500, significance_level=0.05)
 
-    # ------------ Test Run : For HeatmapPlotter -----------------
-    # plotter = HeatmapPlotter(missing.X_encoded_data)
-    # plotter.display()
+    # ------------ Test Run : For StackedBarGraph -----------------
+    #bargraph = StackedBarGraph(missing_encoder_obj=missing)
+    #bargraph.plot('c5_b', 1000)
+
+    # ------------ Test Run : For ScatterPlotter -----------------
+    scatter = ScatterPlotter(normal_encoder_obj=normal, missing_encoder_obj=missing)
+    scatter.plot_numerical('n0')
+    scatter.plot_categorical('c5_b')
