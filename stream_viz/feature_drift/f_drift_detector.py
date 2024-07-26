@@ -139,6 +139,8 @@ class FeatureDriftDetector(DriftDetector):
         if window_size is None:
             window_size = self.window_size
 
+        plt.figure(figsize=(10, 6))
+
         drift_type_temp_label = []
         for idx, drift_type in self._drift_tp_df[feature_name].dropna().items():
             if drift_type == "sudden_drift":
@@ -162,7 +164,6 @@ class FeatureDriftDetector(DriftDetector):
             drift_type_temp_label.append(drift_type)
 
         feature_data = self._feature_data_df[feature_name]
-        plt.figure(figsize=(10, 6))
         plt.scatter(feature_data.index, feature_data, marker="o", s=2)
 
         moving_mean = feature_data.rolling(window=window_size).mean()
