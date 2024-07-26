@@ -1,6 +1,7 @@
 import itertools
-from typing import Iterable, List, Union
+from typing import Dict, Iterable, List, Union
 
+import matplotlib.ticker as mticker
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -295,6 +296,127 @@ class FeatureVelocity(Velocity):
         )
 
 
+class StreamGraph(Velocity):
+    """
+    Class for plotting stream graphs to visualize the velocity of categorical feature changes over time.
+
+    Parameters
+    ----------
+    data_obj : CfpdssDataEncoder
+        The data encoder object containing encoded data and metadata.
+    """
+
+    def __init__(self, data_obj: CfpdssDataEncoder) -> None:
+        """
+        Initializes the StreamGraph object with the provided data encoder.
+
+        Parameters
+        ----------
+        data_obj : CfpdssDataEncoder
+            The data encoder object containing encoded data and metadata.
+        """
+        self._data_obj: CfpdssDataEncoder = data_obj
+
+    @staticmethod
+    def get_timepoint(window_size: int) -> List[int]:
+        """
+        Generate a list of time points based on the specified window size.
+
+        Parameters
+        ----------
+        window_size : int
+            The size of the window to use for chunking the data.
+
+        Returns
+        -------
+        List[int]
+            A list of time points.
+        """
+        time_points = list(range(0, 13000, window_size))
+        return time_points
+
+    @staticmethod
+    def count_categories_in_chunks(
+        column: pd.Series, chunk_size: int = 50
+    ) -> Dict[str, List[int]]:
+        """
+        Count occurrences of each category in chunks of the specified size.
+
+        Parameters
+        ----------
+        column : pd.Series
+            The column containing categorical data.
+        chunk_size : int, optional
+            The size of each chunk to process (default is 50).
+
+        Returns
+        -------
+        Dict[str, List[int]]
+            A dictionary where keys are category names and values are lists of counts per chunk.
+        """
+        # Initialize an empty dictionary to hold the counts for each category
+        category_counts = {}
+
+        # Calculate the number of chunks
+        num_chunks = len(column) // chunk_size + (
+            1 if len(column) % chunk_size != 0 else 0
+        )
+
+        for i in range(num_chunks):
+            # Get the start and end indices for the current chunk
+            start_idx = i * chunk_size
+            end_idx = start_idx + chunk_size
+
+            # Get the current chunk
+            chunk = column[start_idx:end_idx]
+
+            # Count the occurrences of each category in the current chunk
+            chunk_count = chunk.value_counts().to_dict()
+
+            # Update the counts in the category_counts dictionary
+            for category, count in chunk_count.items():
+                if category not in category_counts:
+                    category_counts[category] = [0] * num_chunks
+                category_counts[category][i] = count
+
+            # Ensure all categories have a list of the correct length
+            for category in category_counts:
+                if len(category_counts[category]) < num_chunks:
+                    category_counts[category].extend(
+                        [0] * (num_chunks - len(category_counts[category]))
+                    )
+
+        return category_counts
+
+    def plot(self, feature: str) -> None:
+        """
+        Plot the stream graph for a specified feature to visualize changes over time.
+
+        Parameters
+        ----------
+        feature : str
+            The name of the feature to plot.
+        """
+        window_size = 50
+        time_points = self.get_timepoint(window_size)
+        result = self.count_categories_in_chunks(self._data_obj.X_encoded_data[feature])
+        fig, ax = plt.subplots()
+        fig.set_size_inches(10, 6)
+        ax.stackplot(
+            time_points,
+            result.values(),
+            labels=result.keys(),
+            alpha=0.8,
+            baseline="wiggle",
+        )
+        ax.legend(loc="upper right", reverse=True)
+        ax.set_title(f"Velocity of {feature}")
+        ax.set_xlabel("Time")
+        ax.set_ylabel("Height")
+        ax.xaxis.set_major_locator(mticker.MultipleLocator(1000))
+        plt.show()
+
+
 if __name__ == "__main__":
     from stream_viz.data_encoders.cfpdss_data_encoder import (
         CfpdssDataEncoder,
@@ -306,12 +428,15 @@ if __name__ == "__main__":
     missing = MissingDataEncoder()
     missing.read_csv_data(filepath_or_buffer=_MISSING_DATA_PATH, index_col=[0])
     missing.encode_data()
+    normal = CfpdssDataEncoder()
+    normal.read_csv_data(_MISSING_DATA_PATH)
+    normal.encode_data()
 
-    feature_vel = FeatureVelocity(missing)
-    feature_vel.plot(
-        features="c5", chunk_size=100, start_period=10, end_period=35, x_label_every=5
-    )
-    feature_vel.plot(features=["n0", "n1"], window_size=10, start_tp=200, end_tp=500)
+    # feature_vel = FeatureVelocity(missing)
+    # feature_vel.plot(
+    #     features="c5", chunk_size=100, start_period=10, end_period=35, x_label_every=5
+    # )
+    # feature_vel.plot(features=["n0", "n1"], window_size=10, start_tp=200, end_tp=500)
 
     # stacked_obj = StackedBarChart()
     # cat_feature = "c5_b"
@@ -320,3 +445,5 @@ if __name__ == "__main__":
     # roll_mean_obj = RollingMeansStds()
     # numerical_features = ["n0", "n1"]
     # roll_mean_obj.plot_velocity(missing.X_encoded_data, numerical_features, window_size=10)
+    stream_graph = StreamGraph(normal)
+    stream_graph.plot("c5_b")
