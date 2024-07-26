@@ -82,7 +82,7 @@ class FeatureDriftDetector(DriftDetector):
         # plt.plot(moving_avg.index, moving_avg, color='orange', linestyle='-', label=f'{feature} Moving Mean with trimming')
 
         drift_type_temp_label = []
-        for idx, drift_type in self._drift_tp_df[feature_name].items():
+        for idx, drift_type in self._drift_tp_df[feature_name].dropna().items():
             color = (
                 "red"
                 if drift_type == "Sudden Drift"
