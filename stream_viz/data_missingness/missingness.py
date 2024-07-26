@@ -243,15 +243,38 @@ class HeatmapPlotter(InteractivePlot, Plotter):
 
 
 class StackedBarGraph(Plotter):
+    """
+    Class for plotting stacked bar graphs of categorical feature counts across time periods.
 
-    def __init__(
-        self,
-        missing_encoder_obj: MissingDataEncoder,
-    ):
+    Parameters
+    ----------
+    missing_encoder_obj : MissingDataEncoder
+        The data encoder object containing encoded data and metadata.
+    """
+
+    def __init__(self, missing_encoder_obj: MissingDataEncoder) -> None:
+        """
+        Initializes the StackedBarGraph object with the provided missing data encoder.
+
+        Parameters
+        ----------
+        missing_encoder_obj : MissingDataEncoder
+            The data encoder object containing encoded data and metadata.
+        """
         self._missing_encoder = missing_encoder_obj
         self._data_df = self._missing_encoder.X_encoded_data
 
-    def plot(self, feature, chunk_size):
+    def plot(self, feature: str, chunk_size: int) -> None:
+        """
+        Plot a stacked bar graph for the specified feature over chunks of data.
+
+        Parameters
+        ----------
+        feature : str
+            The name of the categorical feature to plot.
+        chunk_size : int
+            The size of each chunk of data to analyze.
+        """
         df = self._data_df
         num_chunks = len(df) // chunk_size
         chunk_ranges = [
@@ -281,19 +304,50 @@ class StackedBarGraph(Plotter):
 
 
 class ScatterPlotter(Plotter):
+    """
+    Class for plotting scatter plots to visualize numerical and categorical features with missing values.
+
+    Parameters
+    ----------
+    normal_encoder_obj : NormalDataEncoder
+        The data encoder object containing encoded normal data.
+    missing_encoder_obj : MissingDataEncoder
+        The data encoder object containing encoded missing data.
+    """
+
     def __init__(
         self,
         normal_encoder_obj: NormalDataEncoder,
         missing_encoder_obj: MissingDataEncoder,
-    ):
+    ) -> None:
+        """
+        Initializes the ScatterPlotter object with the provided data encoders.
+
+        Parameters
+        ----------
+        normal_encoder_obj : NormalDataEncoder
+            The data encoder object containing encoded normal data.
+        missing_encoder_obj : MissingDataEncoder
+            The data encoder object containing encoded missing data.
+        """
         self._normal_encoder = normal_encoder_obj
         self._missing_encoder = missing_encoder_obj
 
-    def plot(self):
-        """Dummy implementation of the abstract method 'plot'."""
+    def plot(self) -> None:
+        """
+        Dummy implementation of the abstract method 'plot'.
+        """
         pass
 
-    def plot_numerical(self, feature):
+    def plot_numerical(self, feature: str) -> None:
+        """
+        Plot a scatter plot of a numerical feature, highlighting missing values.
+
+        Parameters
+        ----------
+        feature : str
+            The name of the numerical feature to plot.
+        """
         normal_df = self._normal_encoder.X_encoded_data
         missing_df = self._missing_encoder.X_encoded_data
 
@@ -323,7 +377,15 @@ class ScatterPlotter(Plotter):
         plt.legend()
         plt.show()
 
-    def plot_categorical(self, feature):
+    def plot_categorical(self, feature: str) -> None:
+        """
+        Plot a scatter plot of a categorical feature, highlighting missing values with adjusted values.
+
+        Parameters
+        ----------
+        feature : str
+            The name of the categorical feature to plot.
+        """
         normal_df = self._normal_encoder.X_encoded_data.copy()
         missing_df = self._missing_encoder.X_encoded_data
 
