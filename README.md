@@ -9,6 +9,8 @@ specialized encoders and detectors to meet your needs.
 ## Links
 - #### [Readme of our package (contains implementations details)](stream_viz/README.md)
 - #### [User Guide](stream_viz/tutorial/UserGuide.ipynb)
+- #### [Project Report](academic_files/stream_viz_Report.pdf)
+- #### [Project Presentation](academic_files/stream_viz_presentation.pdf)
 
 ## Key Features
 
