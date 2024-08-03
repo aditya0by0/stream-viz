@@ -53,11 +53,24 @@ Please check the [readme](stream_viz/README.md) of our package to understand the
 
 ## Installation
 
-To install the package, use pip:
+To get started with stream-viz, follow these installation instructions:
 
-```sh
-pip install stream_viz
-```
+1. **Create a new Conda environment** with Python version between 3.8.0 and 3.10.0:
+    ```sh
+    conda create --name your_env_name python=3.9
+    ```
+    Alternatively, ensure your machine has a compatible Python version within this range.
+
+2. **Clone the repository**:
+    ```sh
+    git clone https://github.com/aditya0by0/stream-viz.git
+    ```
+
+3. **Navigate to the package directory and install the package**:
+    ```sh
+    cd stream-viz
+    pip install .
+    ```
 
 ## Example
 
