@@ -282,7 +282,7 @@ class FeatureDriftDetector(DriftDetector):
         plt.ylabel(f"{feature_name}")
         plt.grid(True)
         plt.xticks(np.arange(0, len(feature_data), 1000))
-        plt.legend()
+        plt.legend(loc="upper right")  # Position legend at the top right
         plt.show()
 
     @property
