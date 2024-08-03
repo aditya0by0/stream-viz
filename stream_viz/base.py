@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 
 # This library enables interactive plots in the notebook.
 # Enables functionality to hover over data points to see values, zoom in/out, and pan the plot.
-import mpld3
+# import mpld3
 import pandas as pd
 from IPython.core.display_functions import display
 from ipywidgets import HBox, IntSlider, SelectMultiple, VBox, interactive_output
