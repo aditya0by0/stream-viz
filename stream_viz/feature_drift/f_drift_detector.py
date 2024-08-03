@@ -7,6 +7,7 @@ from matplotlib import pyplot as plt
 from scipy.stats import ks_2samp
 
 from stream_viz.base import DriftDetector
+from stream_viz.data_encoders.cfpdss_data_encoder import CfpdssDataEncoder
 from stream_viz.utils.drifts_types import FeatureDriftType, get_fd_drift_type_keys
 
 
@@ -32,27 +33,32 @@ class FeatureDriftDetector(DriftDetector):
 
     def __init__(
         self,
-        features_list: List[str],
-        categorical_features: List[str],
+        data_encoder: CfpdssDataEncoder,
         window_size: int = 300,
         ks_test_pval: float = 0.001,
         gap_size: int = 50,
         p_val_threshold: float = 0.0001,
         psi_threshold: float = 0.12,
     ) -> None:
+        self._data_encoder = data_encoder
         self._drift_records: List[Dict[str, str]] = []
         self._valid_keys: set[str] = get_fd_drift_type_keys()
         self.window_size: int = window_size
         self.gap_size: int = gap_size
         self._window: Deque[Dict[str, float]] = deque(maxlen=window_size)
         self._drift_timepoints: List[int] = []
-        self._moving_avg: pd.DataFrame = pd.DataFrame(columns=features_list)
+        self._moving_avg: pd.DataFrame = pd.DataFrame(
+            columns=self._data_encoder.X_encoded_data.columns
+        )
         self.p_val: float = ks_test_pval
         self.p_val_grad: float = p_val_threshold
         self.psi_threshold: float = psi_threshold
-        self._drift_tp_df: pd.DataFrame = pd.DataFrame(columns=features_list)
-        self._feature_data_df: pd.DataFrame = pd.DataFrame(columns=features_list)
-        self.categorical_features: List[str] = categorical_features
+        self._drift_tp_df: pd.DataFrame = pd.DataFrame(
+            columns=self._data_encoder.X_encoded_data.columns
+        )
+        self._feature_data_df: pd.DataFrame = pd.DataFrame(
+            columns=self._data_encoder.X_encoded_data.columns
+        )
 
     def update(self, x_i: Dict[str, float], y_i: int, tpt: int) -> None:
         """
@@ -84,13 +90,18 @@ class FeatureDriftDetector(DriftDetector):
         """
         window_df = pd.DataFrame(self._window)
         for feature in window_df.columns:
-            if feature in self.categorical_features:
+            if feature in self._data_encoder.categorical_column_mapping.values():
                 drift_detected, drift_type = self._detect_drift_using_psi(
                     window_df[feature].values
                 )
-            else:
+            elif feature in self._data_encoder.numerical_column_mapping.values():
                 drift_detected, drift_type = self._detect_drift_using_ks(
                     window_df[feature].values
+                )
+            else:
+                raise ValueError(
+                    f"Feature {feature} not supported (neither in categorical or numerical mapping of the "
+                    f"encoder)."
                 )
             if drift_detected:
                 self._drift_tp_df.loc[tpt, feature] = drift_type
@@ -188,6 +199,18 @@ class FeatureDriftDetector(DriftDetector):
         if window_size is None:
             window_size = self.window_size
 
+        if feature_name in self._data_encoder.X_encoded_data.columns:
+            # if user provides feature name according to encoded data
+            pass
+
+        # if user provides feature name in original dataset
+        elif feature_name in self._data_encoder.original_categorical_cols:
+            feature_name = self._data_encoder.categorical_column_mapping[feature_name]
+        elif feature_name in self._data_encoder.numerical_column_mapping:
+            feature_name = self._data_encoder.numerical_column_mapping[feature_name]
+        else:
+            raise ValueError(f"Feature {feature_name} not recognized")
+
         plt.figure(figsize=(10, 6))
 
         drift_type_temp_label = []
@@ -277,34 +300,16 @@ if __name__ == "__main__":
     normal.read_csv_data(_NORMAL_DATA_PATH)
     normal.encode_data()
 
-    # Create a mapping of original to encoded column names
-    encoded_categorical_cols = normal.X_encoded_data.columns[
-        normal.X_encoded_data.columns.str.startswith("c")
-    ]
-    original_to_encoded_categorical_cols = {
-        original: encoded
-        for original, encoded in zip(
-            normal.original_categorical_cols, encoded_categorical_cols
-        )
-    }
-
-    # As the KS test is only for numerical features
-    X_numerical = normal.X_encoded_data[normal.original_numerical_cols]
-    X_categorical = normal.X_encoded_data[encoded_categorical_cols]
-    all_features = X_numerical.columns.tolist() + X_categorical.columns.tolist()
-    fd_detector = FeatureDriftDetector(
-        features_list=all_features,
-        categorical_features=encoded_categorical_cols.tolist(),
-    )
+    fd_detector = FeatureDriftDetector(data_encoder=normal)
 
     dt_streamer = DataStreamer(fd_detector_obj=fd_detector)
     dt_streamer.stream_data(X_df=normal.X_encoded_data, y_df=normal.y_encoded_data)
 
     # Plot feature drift for a numerical features
-    dt_streamer.fd_detector_obj.plot(feature_name=X_numerical.columns[0])
+    dt_streamer.fd_detector_obj.plot(feature_name="n0")
 
     # Plot feature drift for a categorical features
-    dt_streamer.fd_detector_obj.plot(feature_name=X_categorical.columns[0])
+    dt_streamer.fd_detector_obj.plot(feature_name="c6")
 
     # dt = FeatureDriftDetector(fd_detector_obj=normal)
     # dt.plot("n0")
