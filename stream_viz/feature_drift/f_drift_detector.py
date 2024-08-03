@@ -150,6 +150,19 @@ class FeatureDriftDetector(DriftDetector):
     def _detect_drift_using_psi(
         self, window_data: np.ndarray
     ) -> Tuple[bool, Optional[str]]:
+        """
+        Detect drift using the Population Stability Index (PSI).
+
+        Parameters
+        ----------
+        window_data : np.ndarray
+            Array of feature values in the current window.
+
+        Returns
+        -------
+        Tuple[bool, Optional[str]]
+            A tuple indicating whether drift was detected and the type of drift.
+        """
         first_half = window_data[: self.window_size // 2]
         second_half = window_data[self.window_size // 2 :]
 
@@ -172,6 +185,23 @@ class FeatureDriftDetector(DriftDetector):
         return False, None
 
     def calculate_psi(self, expected, actual, buckets=10):
+        """
+        Calculate the Population Stability Index (PSI) between two distributions.
+
+        Parameters
+        ----------
+        expected : np.ndarray
+            The expected distribution (first half of the window data).
+        actual : np.ndarray
+            The actual distribution (second half of the window data).
+        buckets : int, optional
+            Number of buckets to divide the distributions into (default is 10).
+
+        Returns
+        -------
+        float
+            The PSI value.
+        """
         expected_percents = np.histogram(expected, bins=buckets, range=(0, 1))[0] / len(
             expected
         )
